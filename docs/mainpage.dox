@@ -1,0 +1,20 @@
+/**
+\mainpage Documentation for Imfit
+
+These pages contain documentation for the various APIs of **Imfit**,
+of interest primarily if you're interested in hacking around with the actual
+code.
+
+See the main [Imfit web page](http://www.mpe.mpg.de/~erwin/code/imfit/) for an overview, links
+to precompiled binaries, etc.
+
+For detailed notes on how to *use* **Imfit**, see the imfit_howto.pdf file,
+which should be provided as part of the basic installation (and which is also
+available from the [Imfit web page](http://www.mpe.mpg.de/~erwin/code/imfit/)).
+For a basic tutorial, see the [Imfit tutorial](http://www.mpe.mpg.de/~erwin/code/imfit/markdown/index.html).
+
+For more detailed discussion of the algorithms and scientific background,
+see [Erwin (2015)](http://adsabs.harvard.edu/abs/2015ApJ...799..226E).
+
+See [Design page](docs/design-and-architecture.md) for more info.
+*/

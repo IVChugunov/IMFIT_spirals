@@ -1,0 +1,522 @@
+#!/bin/bash
+#
+# Regression tests for imfit
+#
+# How to skip time-consuming checks (DE, oversampled-PSF, etc.): run script as
+# $ ./do_imfit_tests
+# Including DE and oversampled-PSF tests: run script as
+# $ ./do_imfit_tests --all
+
+# Predefine some ANSI color escape codes
+RED='\033[0;31m'
+GREEN='\033[0;0;32m'
+NC='\033[0m' # No Color
+
+# create an integer variable for status (& counting number of failed tests)
+declare -i STATUS=0
+
+FAILED_TEXT=" ** Test failed. **"
+
+do_fits_tests=$(./python/py_startup_test.py)
+if [[ $do_fits_tests == "0" ]]
+then
+  echo -n "Unable to load numpy and/or pyfits (and/or astropy.io.fits) Python modules"
+  echo -n "Tests will skip comparison of FITS files"
+fi
+
+# If there's only one processor core available, we'll skip the OpenMP-speedup test
+nProcs=$(getconf _NPROCESSORS_ONLN)
+
+
+
+# create output directory for test_dump*, etc. files (will do nothing if
+# directory already exists), then delete existing test_dump* files
+mkdir -p temptest
+
+echo ""
+echo "Cleaning up previous output files..."
+rm temptest/test_dump*
+
+
+IMFIT="./imfit"
+
+
+# ** Run imfit with different test inputs **
+echo ""
+echo "Running tests for imfit..."
+# simple tests using small images
+$IMFIT -c tests/imfit_reference/config_imfit_expdisk32.dat --noise tests/uniform_image32.fits tests/testimage_expdisk32.fits --no-subsampling &> temptest/test_dump1
+
+# test using cutout SDSS image
+$IMFIT tests/ic3478rss_64x64.fits -c tests/imfit_reference/imfit_config_ic3478_64x64.dat --gain=4.725 --readnoise=4.3 --sky=130.1 &> temptest/test_dump2
+# same, now with gain, etc. put into config file
+$IMFIT tests/ic3478rss_64x64.fits -c tests/imfit_reference/imfit_config_ic3478_64x64b.dat  &> temptest/test_dump3
+# same, using N-M Simplex fitting
+$IMFIT tests/ic3478rss_64x64.fits -c tests/imfit_reference/imfit_config_ic3478_64x64b.dat --nm --quiet &> temptest/test_dump3b
+# same, using DE fitting [skip if requested by user, since it's slow!]
+if [[ "$1" == "--all" ]]
+then
+  echo -n "   (now running fit with DE ...)"
+  $IMFIT tests/ic3478rss_64x64.fits -c tests/imfit_reference/imfit_config_ic3478_64x64b.dat --de &> temptest/test_dump3c
+  echo ""
+else
+  echo "   (-- skipping DE test --)"
+fi
+# same L-M fit with --loud turned on, to ensure we print intermediate values correctly during fit
+$IMFIT tests/ic3478rss_64x64.fits -c tests/imfit_reference/imfit_config_ic3478_64x64b.dat --loud  &> temptest/test_dump3d
+# same, but now with Sersic n fixed (to ensure we don't re-introduce bug originally seen when
+# using --loud and one or more fixed parameters)
+$IMFIT tests/ic3478rss_64x64.fits -c tests/imfit_reference/imfit_config_ic3478_64x64c.dat --loud  &> temptest/test_dump3d2
+
+# same L-M fit, using external noise image (default = sigmas)
+$IMFIT tests/ic3478rss_64x64.fits -c tests/imfit_reference/imfit_config_ic3478_64x64c.dat --noise=tests/ic3478rss_64x64_sigma.fits  &> temptest/test_dump3e
+# same L-M fit, using external variance image (default = sigmas)
+$IMFIT tests/ic3478rss_64x64.fits -c tests/imfit_reference/imfit_config_ic3478_64x64c.dat --noise=tests/ic3478rss_64x64_variance.fits --errors-are-variances  &> temptest/test_dump3e2
+# same L-M fit, using external "weight" image (= inverse variance)
+
+# test non-square SDSS image + PSF convolution; then test count/sec version with --exptime
+# option; then just do chisquare-only calculations (for chi^2 and Cash statistic)
+echo -n "   (now running fit with PSF convolution ...)"
+$IMFIT tests/n3073rss_small.fits -c tests/imfit_reference/imfit_config_n3073.dat --mask tests/n3073rss_small_mask.fits --psf tests/psf_moffat_35_n4699z.fits &> temptest/test_dump4
+# test on count/sec image using --exptime; remember to rescale --sky as well! (= 154.33 / 53.907456)
+$IMFIT tests/n3073rss_small_cps.fits -c tests/imfit_reference/imfit_config_n3073.dat --mask tests/n3073rss_small_mask.fits --psf tests/psf_moffat_35_n4699z.fits --exptime=53.907456 --sky=2.8628692847238053 &> temptest/test_dump4b
+$IMFIT tests/n3073rss_small.fits -c tests/imfit_reference/imfit_config_n3073.dat --mask tests/n3073rss_small_mask.fits --psf tests/psf_moffat_35_n4699z.fits --chisquare-only &> temptest/test_dump4c
+$IMFIT tests/n3073rss_small.fits -c tests/imfit_reference/imfit_config_n3073.dat --mask tests/n3073rss_small_mask.fits --psf tests/psf_moffat_35_n4699z.fits --chisquare-only --cashstat &> temptest/test_dump4d
+echo ""
+
+# test use of oversampled PSF (don't use L-M; doesn't converge)
+if [[ "$1" == "--all" ]]
+then
+  echo -n "   (now running fits with oversampled PSF ...)"
+  # Don't use L-M for first two (converges way too slowly)
+  $IMFIT -c tests/imfit_reference/config_imfit_gauss-oversample-test2.dat --gain=100 --mlr --nm tests/oversamp_test4.fits --psf tests/psf_standard.fits --overpsf tests/psf_oversamp.fits --overpsf_scale 3 --overpsf_region 100:110,100:110  &> temptest/test_dump4e
+  $IMFIT -c tests/imfit_reference/config_imfit_gauss-oversample-test2.dat --gain=100 --mlr --nm tests/oversamp_test4.fits[51:200,41:190] --psf tests/psf_standard.fits --overpsf tests/psf_oversamp.fits --overpsf_scale 3 --overpsf_region 100:110,100:110  &> temptest/test_dump4e2
+  # L-M works just fine for this
+  $IMFIT -c tests/imfit_reference/config_imfit_2gauss_small.dat tests/twogaussian_psf+2osamp_noisy.fits --psf=tests/psf_moffat_35.fits --overpsf tests/psf_moffat_35_oversamp3.fits --overpsf_scale 3 --overpsf_region 35:45,35:45 --overpsf_region 10:20,5:15  &> temptest/test_dump4e3
+  echo ""
+else
+  echo "   (-- skipping oversampled PSF tests --)"
+fi
+
+# FIXME: tests of multi-region PSF oversampling: two regions, same PSF
+
+
+# test fitting with Cash statistic
+echo -n "   (now running Cash-statistic and Poisson MLR fits ...)"
+$IMFIT tests/testimage_poisson_lowsn20.fits -c tests/imfit_reference/config_imfit_poisson.dat --cashstat --nm &> temptest/test_dump5a
+# test fitting with Poisson MLR statistic (using image that failed before fabs() bug-fix)
+$IMFIT tests/testimage_poisson_lowsn20.fits -c tests/imfit_reference/config_imfit_poisson.dat --mlr --nm &> temptest/test_dump5b
+$IMFIT tests/testimage_poisson_lowsn20.fits -c tests/imfit_reference/config_imfit_poisson.dat --mlr &> temptest/test_dump5c
+# test fitting with image that failed prior to the fabs() bug-fix
+$IMFIT tests/pgc35772_continuum.fits[340:630,300:580] -c tests/imfit_reference/config_imfit_pgc35772.dat --mask=tests/pgc35772_mask.fits[340:630,300:580] --mlr  &> temptest/test_dump5d
+echo ""
+
+# test bootstrap resampling (first is just to see that program doesn't crash, which happened
+# previously when nIterations = 3; third is for testing that we correct for image offsets
+# in the saved-iterations output file)
+$IMFIT tests/ic3478rss_64x64.fits -c tests/imfit_reference/imfit_config_ic3478_64x64b.dat --bootstrap 3 &> /dev/null
+$IMFIT tests/ic3478rss_64x64.fits -c tests/imfit_reference/imfit_config_ic3478_64x64b.dat --seed 10 --bootstrap 5 --save-bootstrap temptest/temp_bootstrap_output.dat &> /dev/null
+$IMFIT tests/ic3478rss_64x64.fits[10:64,10:64] -c tests/imfit_reference/imfit_config_ic3478_64x64b.dat --seed 10 --bootstrap 5 --save-bootstrap temptest/temp_bootstrap_output2.dat &> temptest/test_dump5e
+
+# testing error-image generation and saving
+# first using data values for errors, then using model values (should be identical)
+$IMFIT tests/flatsky_128x128.fits -c tests/imfit_reference/config_imfit_flatsky.dat --save-weights=temptest/test_weights_data.fits &> /dev/null
+$IMFIT tests/flatsky_128x128.fits -c tests/imfit_reference/config_imfit_flatsky.dat --model-errors --save-weights=temptest/test_weights_model.fits &> /dev/null
+
+# testing saving of model and residual images
+$IMFIT tests/ic3478rss_64x64.fits -c tests/imfit_reference/imfit_config_ic3478_64x64b.dat --save-model=temptest/test_model_ic3478.fits --save-residual=temptest/test_residual_ic3478.fits &> /dev/null
+
+# Weird input-image problems: all pixels masked, mismatched image sizes,
+# FITS files that are tables or null-array (in the primary HDU)
+# 6: testing that we catch error: case of all pixels masked:
+$IMFIT tests/ic3478rss_64x64.fits -c tests/imfit_reference/imfit_config_ic3478_64x64b.dat --mask tests/totalmask_64x64.fits  &> temptest/test_dump6
+# 6b: testing that we catch error: case of mismatched image sizes:
+$IMFIT tests/ic3478rss_64x64.fits -c tests/imfit_reference/imfit_config_ic3478_64x64b.dat --mask tests/n3073rss_small_mask.fits  &> temptest/test_dump6b
+# 6c: testing that we catch error: case of a non-image (empty) HDU for the data image
+$IMFIT tests/test_emptyhdu.fits -c tests/imfit_reference/imfit_config_ic3478_64x64b.dat &> temptest/test_dump6c
+# 6d: testing that we catch error: case of a non-image (table) HDU for the data image (empty HDU 0, table in HDU 1)
+$IMFIT tests/test_table.fits -c tests/imfit_reference/imfit_config_ic3478_64x64b.dat &> temptest/test_dump6d
+# 6e: testing that we catch error: case of a non-image HDU for the mask image
+$IMFIT tests/ic3478rss_64x64.fits -c tests/imfit_reference/imfit_config_ic3478_64x64b.dat --mask tests/test_emptyhdu.fits  &> temptest/test_dump6e
+# 6f: testing that we catch error: case of multi-extension FITS file with [0] naming empty primary HDU
+$IMFIT tests/test_multiextension_hdu0empty.fits[0] -c tests/imfit_reference/imfit_config_ic3478_64x64b.dat &> temptest/test_dump6f
+# And a couple of cases with *valid* images -- testing that we handle "[n]" and "[n][x1:x2,y1:y2]" correctly
+# 6g: testing that we handle case of multi-extension FITS file with [1] naming valid image HDU
+$IMFIT tests/test_multiextension_hdu0empty.fits[1] -c tests/imfit_reference/config_imfit_small-gaussian.dat &> temptest/test_dump6g
+# 6h: testing that we handle case of multi-extension FITS file with [1] + image subsection
+$IMFIT tests/test_multiextension_hdu0empty.fits[1][1:8,1:8] -c tests/imfit_reference/config_imfit_small-gaussian.dat &> temptest/test_dump6h
+
+# test to see if we mask NaN value in small image (3x3, all pixels = 1.5 except corner = NaN)
+$IMFIT -c tests/imfit_reference/config_3x3_flatsky.dat tests/testimage_3x3_nan.fits &> temptest/test_dump7a
+# test to see if we mask NaN value in mask image (3x3, all pixels = 0 except corner = NaN)
+$IMFIT -c tests/imfit_reference/config_3x3_flatsky.dat tests/testimage_3x3_ones.fits --mask=tests/testimage_3x3_mask-with-nan.fits &> temptest/test_dump7b
+# test to see if we mask NaN value in error image (3x3, all pixels = 1.5 except corner = NaN)
+$IMFIT -c tests/imfit_reference/config_3x3_flatsky.dat tests/testimage_3x3_ones.fits --noise=tests/testimage_3x3_nan.fits &> temptest/test_dump7c
+# test to see if we correctly catch bad pixel value (=0, which is bad for data-based chi^2 estimation)
+$IMFIT -c tests/imfit_reference/config_3x3_flatsky.dat tests/testimage_3x3_onezero.fits &> temptest/test_dump7d
+# and now test to see if we correctly ignore bad pixel value when it's masked
+$IMFIT -c tests/imfit_reference/config_3x3_flatsky.dat tests/testimage_3x3_onezero.fits --mask=tests/mask_for_onezero.fits &> temptest/test_dump7e
+ # test to see if we save multi-function-block output correctly when using N-M simplex
+$IMFIT -c tests/imfit_reference/config_imfit_2gauss_small.dat tests/testimage_2gauss_psf.fits --nm --save-params=temptest/bestfit_params_2gauss_small.dat &> temptest/test_dump7f
+
+# test to see if fitting with interpolated PSF works
+$IMFIT -c tests/imfit_reference/config_imfit_ptsource.dat tests/psf_moffat_fwhm2.fits --psf=tests/psf_moffat_fwhm2_35x35.fits &> temptest/test_dump8a
+
+# test to see if OpenMP multithreading works (to make sure we don't re-introduce the
+# compilation bug of v1.7.0 that effectively turned it off) -- but only if there are 2 
+# or more CPU cores available
+if [[ "$1" == "--all" ]] && [[ nProcs -gt 1 ]]
+then
+  echo -n "   (now testing OpenMP speedup ...)"
+  $IMFIT tests/n3073rss_small.fits -c tests/imfit_reference/imfit_config_n3073.dat --mask tests/n3073rss_small_mask.fits &> temptest/test_dump_openmp
+  $IMFIT tests/n3073rss_small.fits -c tests/imfit_reference/imfit_config_n3073.dat --mask tests/n3073rss_small_mask.fits --max-threads=1 &> temptest/test_dump_maxthreads1
+  echo ""
+else
+  echo "   (-- skipping OpenMP speedup test --)"
+fi
+
+#    Testing to see that bad config files are caught:
+$IMFIT -c tests/makeimage_reference/config_makeimage_sersictest512_bad1.dat tests/ic3478rss_64x64.fits &> temptest/test_dump_bad1
+$IMFIT -c tests/makeimage_reference/config_makeimage_sersictest512_bad2.dat tests/ic3478rss_64x64.fits &> temptest/test_dump_bad2
+$IMFIT -c tests/makeimage_reference/config_makeimage_sersictest512_bad3.dat tests/ic3478rss_64x64.fits &> temptest/test_dump_bad3
+$IMFIT -c tests/makeimage_reference/config_makeimage_sersictest512_bad4.dat tests/ic3478rss_64x64.fits &> temptest/test_dump_bad4
+$IMFIT -c tests/imfit_reference/config_imfit_sersictest512_badlimits1.dat tests/ic3478rss_64x64.fits &> temptest/test_dump_bad5
+$IMFIT -c tests/imfit_reference/config_imfit_sersictest512_badlimits2.dat tests/ic3478rss_64x64.fits &> temptest/test_dump_bad6
+$IMFIT -c tests/imfit_reference/config_imfit_sersictest512_badlimits3.dat tests/ic3478rss_64x64.fits &> temptest/test_dump_bad7
+$IMFIT -c tests/imfit_reference/config_imfit_badparamline.dat tests/ic3478rss_64x64.fits &> temptest/test_dump_bad8
+
+#    Other input testing -- bad NLOpt specifiers, etc.
+$IMFIT tests/testimage_poisson_lowsn20.fits -c tests/imfit_reference/config_imfit_poisson.dat --cashstat --nlopt=BADNAME &> temptest/test_dump_badnloptname
+
+
+
+
+echo ""
+
+# ** Run diff comparisons with output against reference output **
+# Note that we diff only the first n lines to avoid irrelevant variations in the
+# elapsed-time output (reported at the end of the file).
+
+echo -n "*** Diff comparison with archives: first test... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout1 temptest/test_dump1 --skip-last=3
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: tiny SDSS cutout image... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout2 temptest/test_dump2 --skip-last=3
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: tiny SDSS cutout image (take 2)... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout3 temptest/test_dump3 --skip-last=3
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: tiny SDSS cutout image (N-M simplex fit)... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout3b temptest/test_dump3b --skip-last=3
+STATUS+=$?
+
+# special test for DE output because final parameter are more variable from one fit
+# to the next...
+if [[ "$1" == "--all" ]]
+then
+  tail -n 17 temptest/test_dump3c > temptest/test_dump3c_tail
+  echo -n "*** Comparison with archives (tolerances ~ 5e-5 or smaller): tiny SDSS cutout image (DE fit)... "
+  ./python/compare_imfit_printouts.py temptest/test_dump3c_tail tests/imfit_reference/imfit_textout3c_tail
+  STATUS+=$?
+fi
+
+echo -n "*** Diff comparison with archives: tiny SDSS cutout image (L-M fit with --loud)... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout3d temptest/test_dump3d --skip-last=3
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: tiny SDSS cutout image (L-M fit with --loud, fixed parameter)... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout3d2 temptest/test_dump3d2 --skip-last=3
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: tiny SDSS cutout image (L-M fit using sigma map)... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout3e temptest/test_dump3e --skip-last=3
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: tiny SDSS cutout image (L-M fit using variance map)... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout3e2 temptest/test_dump3e2 --skip-last=3
+STATUS+=$?
+
+
+echo -n "*** Diff comparison with archives: fit to larger (rectangular) SDSS image w/ PSF convolution... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout4 temptest/test_dump4 --skip-last=3
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: same, but using counts/sec image + --exptime option... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout4b temptest/test_dump4b --skip-last=3
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: chisquare-only calculation... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout4c temptest/test_dump4c --skip-last=3
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: chisquare-only (Cash statistic) calculation... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout4d temptest/test_dump4d --skip-last=3
+STATUS+=$?
+
+if [[ "$1" == "--all" ]]
+then
+  echo -n "*** Diff comparison with archives: fit using oversampled PSF... "
+  ./python/diff_printouts.py tests/imfit_reference/imfit_textout4e temptest/test_dump4e --skip-last=3
+  STATUS+=$?
+
+  echo -n "*** Diff comparison with archives: fit using oversampled PSF + image section... "
+  ./python/diff_printouts.py tests/imfit_reference/imfit_textout4e2 temptest/test_dump4e2 --skip-last=3
+  STATUS+=$?
+
+  echo -n "*** Diff comparison with archives: fit using oversampled PSF + 2 image sections... "
+  ./python/diff_printouts.py tests/imfit_reference/imfit_textout4e3 temptest/test_dump4e3 --skip-last=3
+  STATUS+=$?
+fi
+
+echo -n "*** Diff comparison with archives: fit using Cash statistic... "
+tail -n 18 temptest/test_dump5a > temptest/test_dump5a_tail
+./python/diff_printouts.py tests/imfit_reference/imfit_textout5a_tail temptest/test_dump5a_tail --skip-last=3
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: fit using Poisson MLR statistic (+ N-M solver)... "
+tail -n 18 temptest/test_dump5b > temptest/test_dump5b_tail
+./python/diff_printouts.py tests/imfit_reference/imfit_textout5b_tail temptest/test_dump5b_tail --skip-last=3
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: fit using Poisson MLR statistic (+ L-M solver)... "
+tail -n 18 temptest/test_dump5c > temptest/test_dump5c_tail
+./python/diff_printouts.py tests/imfit_reference/imfit_textout5c_tail temptest/test_dump5c_tail --skip-last=3
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: Poisson-MLR-stat fit to problematic image (+ L-M solver)... "
+tail -n 18 temptest/test_dump5d > temptest/test_dump5d_tail
+./python/diff_printouts.py tests/imfit_reference/imfit_textout5d_tail temptest/test_dump5d_tail --skip-last=3
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: bootstrap-resampling output... "
+tail -n 7 temptest/temp_bootstrap_output.dat > temptest/temp_bootstrap_output_tail
+./python/diff_printouts.py tests/bootstrap_output_seed10_tail.dat temptest/temp_bootstrap_output_tail
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: bootstrap-resampling printout (with image offset)... "
+tail -n 18 temptest/test_dump5e > temptest/test_dump5e_tail
+./python/diff_printouts.py tests/imfit_reference/imfit_textout5e_tail temptest/test_dump5e_tail --skip-last=3
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: bootstrap-resampling output (with image offset)... "
+tail -n 7 temptest/temp_bootstrap_output2.dat > temptest/temp_bootstrap_output2_tail
+./python/diff_printouts.py tests/bootstrap_output_seed10_2_tail.dat temptest/temp_bootstrap_output2_tail
+STATUS+=$?
+
+
+# do output weight images agree?
+if [[ $do_fits_tests == "1" ]]
+then
+  ./python/compare_fits_files.py temptest/test_weights_data.fits temptest/test_weights_model.fits
+  STATUS+=$?
+fi
+
+# Does residual + model = original image?
+if [[ $do_fits_tests == "1" ]]
+then
+  ./python/compare_fits_files.py --compare-sum temptest/test_residual_ic3478.fits temptest/test_model_ic3478.fits tests/ic3478rss_64x64.fits
+  STATUS+=$?
+fi
+
+echo -n "*** Diff comparison with archives: catching the case of masking all pixels... "
+if (diff --brief temptest/test_dump6 tests/imfit_reference/imfit_textout6)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC} Diff output:"
+  diff temptest/test_dump6 tests/imfit_reference/imfit_textout6
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: catching the case of mismatch in data and mask sizes... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout6b temptest/test_dump6b
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: catching non-image FITS file (empty HDU) for data image... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout6c temptest/test_dump6c
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: catching non-image FITS file (table in HDU 1) for data image... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout6d temptest/test_dump6d
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: catching non-image FITS file (empty HDU) for mask image... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout6e temptest/test_dump6e
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: catching [0] referring to empty HDU... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout6f temptest/test_dump6f
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: correctly handling [1] referring to valid image in FITS file... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout6g temptest/test_dump6g --skip-last=3
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: correctly handling [1] + image subsection... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout6h temptest/test_dump6h --skip-last=3
+STATUS+=$?
+
+
+echo -n "*** Diff comparison with archives: automatic masking of NaN values in data... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout7a temptest/test_dump7a --skip-last=3
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: automatic masking of NaN values in mask... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout7b temptest/test_dump7b --skip-last=3
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: automatic masking of NaN values in noise map... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout7c temptest/test_dump7c --skip-last=3
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: detection of zero-valued pixel (bad for data-based chi^2 errors)... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout7d temptest/test_dump7d --skip-last=3
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: ignore zero-valued pixel when it's masked... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout7e temptest/test_dump7e --skip-last=3
+STATUS+=$?
+
+# Note that we test two things here: the console output *and* the bestfit-parameter
+# output file
+echo -n "*** Diff comparison with archives: print blank line between function blocks... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout7f temptest/test_dump7f --skip-last=3
+STATUS+=$?
+echo -n "*** Diff comparison with archives: same, checking output parameter file... "
+tail -n +4 temptest/bestfit_params_2gauss_small.dat > temptest/bestfit_params_2gauss_small_tail.dat
+if (diff --brief temptest/bestfit_params_2gauss_small_tail.dat tests/bestfit_params_2gauss_small_tail.dat)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC} Diff output:"
+  diff temptest/bestfit_params_2gauss_small_tail.dat tests/bestfit_params_2gauss_small_tail.dat
+  STATUS+=1
+fi
+
+
+echo -n "*** Diff comparison with archives: fitting with bicubic-interpolated PSF image... "
+./python/diff_printouts.py tests/imfit_reference/imfit_textout8a temptest/test_dump8a --skip-last=3
+STATUS+=$?
+
+
+if [[ "$1" == "--all" ]] && [[ nProcs -gt 1 ]]
+then
+  echo -n "*** Checking that OpenMP speedup works..."
+  ./python/check_speedup.py temptest/test_dump_openmp temptest/test_dump_maxthreads1
+  STATUS+=$?
+fi
+
+
+
+echo -n "*** Diff comparison with archives: bad config file 1... "
+if (diff --brief temptest/test_dump_bad1 tests/imfit_reference/imfit_textout_bad1)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC} Diff output:"
+  diff temptest/test_dump_bad1 tests/imfit_reference/imfit_textout_bad1
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad config file 2... "
+if (diff --brief temptest/test_dump_bad2 tests/imfit_reference/imfit_textout_bad2)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC} Diff output:"
+  diff temptest/test_dump_bad2 tests/imfit_reference/imfit_textout_bad2
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad config file 3... "
+if (diff --brief temptest/test_dump_bad3 tests/imfit_reference/imfit_textout_bad3)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC} Diff output:"
+  diff temptest/test_dump_bad3 tests/imfit_reference/imfit_textout_bad3
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad config file 4... "
+if (diff --brief temptest/test_dump_bad4 tests/imfit_reference/imfit_textout_bad4)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC} Diff output:"
+  diff temptest/test_dump_bad4 tests/imfit_reference/imfit_textout_bad4
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad config file 5... "
+if (diff --brief temptest/test_dump_bad5 tests/imfit_reference/imfit_textout_bad5)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC} Diff output:"
+  diff temptest/test_dump_bad5 tests/imfit_reference/imfit_textout_bad5
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad config file 6... "
+if (diff --brief temptest/test_dump_bad6 tests/imfit_reference/imfit_textout_bad6)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC} Diff output:"
+  diff temptest/test_dump_bad6 tests/imfit_reference/imfit_textout_bad6
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad config file 7... "
+if (diff --brief temptest/test_dump_bad7 tests/imfit_reference/imfit_textout_bad7)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC} Diff output:"
+  diff temptest/test_dump_bad7 tests/imfit_reference/imfit_textout_bad7
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad parameter specification... "
+if (diff --brief temptest/test_dump_bad8 tests/imfit_reference/imfit_textout_bad8)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC} Diff output:"
+  diff temptest/test_dump_bad8 tests/imfit_reference/imfit_textout_bad7
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad --nlopt name... "
+if (diff --brief temptest/test_dump_badnloptname tests/imfit_reference/imfit_textout_badnloptname)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC} Diff output:"
+  diff temptest/test_dump_badnloptname tests/imfit_reference/imfit_textout_badnloptname
+  STATUS+=1
+fi
+
+
+
+
+echo ""
+if [[ $STATUS -eq 1 ]]
+then
+  echo -e "${RED}One test failed!${NC}"
+elif [[ $STATUS -gt 1 ]]
+then
+  echo -e "${RED}${STATUS} tests failed!${NC}"
+else
+  echo -e "${GREEN}All tests passed.${NC}"
+fi
+
+echo ""
+echo "Done."
+echo ""
+
+exit $STATUS

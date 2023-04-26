@@ -1,0 +1,99 @@
+# !bin/sh
+#
+# Regression tests for profilefit
+
+# Predefine some ANSI color escape codes
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+# create an integer variable for status (& counting number of failed tests)
+declare -i STATUS=0
+
+FAILED_TEXT=" ** Test failed. **"
+
+echo ""
+echo "Running tests for profilefit (L-M solver only)..."
+# simple tests
+./profilefit profile_data/n5831_total.dat tests/config_profilefit_sersic.dat --quiet &> test_dump1
+# run the next fit with ftol = 10^-10 since that's what we used originally to generate the
+# reference output
+./profilefit profile_data/n3348_total_fix.dat tests/config_profilefit_core-sersic.dat --ftol=1.0e-10 --quiet &> test_dump2
+./profilefit profile_data/n5831_total.dat tests/config_profilefit_sersic.dat --nm &> test_dump3a
+./profilefit profile_data/n5831_total.dat tests/config_profilefit_sersic.dat --de --seed=101 &> test_dump3b
+./profilefit profile_data/n5831_total.dat tests/config_profilefit_sersic.dat --chisquare-only &> test_dump4
+
+
+
+
+echo ""
+
+echo -n "*** Diff comparison with archives: NGC 5381 Sersict fit... "
+if (diff --brief test_dump1 tests/profilefit_reference/profilefit_textout1)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff test_dump1 tests/profilefit_reference/profilefit_textout1
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: NGC 3348 Core-Sersic fit... "
+if (diff --brief test_dump2 tests/profilefit_reference/profilefit_textout2)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff test_dump2 tests/profilefit_reference/profilefit_textout2
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: NGC 5381 Sersict fit (Nelder-Mead Simplex)... "
+tail -n 12 test_dump3a > test_dump3a_tail
+if (diff --brief test_dump3a_tail tests/profilefit_reference/profilefit_textout3a)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff test_dump3a_tail tests/profilefit_reference/profilefit_textout3a
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: NGC 5381 Sersict fit (Differential Evoln.)... "
+tail -n 12 test_dump3b > test_dump3b_tail
+if (diff --brief test_dump3b_tail tests/profilefit_reference/profilefit_textout3b)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff test_dump3b_tail tests/profilefit_reference/profilefit_textout3b
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: NGC 5381 Sersict fit -- print initial chi^2 only... "
+if (diff --brief test_dump4 tests/profilefit_reference/profilefit_textout4)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff test_dump4 tests/profilefit_reference/profilefit_textout4
+  STATUS+=1
+fi
+
+
+echo ""
+if [ $STATUS -eq 1 ]
+then
+  echo -e "${RED}One test failed!${NC}"
+elif [ $STATUS -gt 1 ]
+then
+  echo -e "${RED}${STATUS} tests failed!${NC}"
+else
+  echo "All tests passed."
+fi
+
+
+echo ""
+echo "Done."
+echo ""
+
+exit $STATUS

@@ -1,0 +1,38 @@
+	data file = profile_data/n3348_total_fix.dat
+	config file = tests/config_profilefit_core-sersic.dat
+	fractional tolerance ftol for chi^2 convergence = 1e-10
+Data file "profile_data/n3348_total_fix.dat": 43 data points
+Adding functions to model object...
+	Function: Core-Sersic-1D
+	7 total parameters
+ModelObject: mask vector applied to weight vector. (43 valid pixels remain)
+ModelObject(1d): 43 data values
+Setting up parameter information vector ...
+Fixed parameter detected (i = 0)
+6 free parameters (37 degrees of freedom)
+Calling Levenberg-Marquardt solver ...
+
+*** mpfit status = 1 -- SUCCESS: Convergence in fit-statistic value.
+  CHI-SQUARE = 0.062599    (37 DOF)
+  INITIAL CHI^2 = 6.749927
+        NPAR = 7
+       NFREE = 6
+     NPEGGED = 0
+     NITER = 12
+      NFEV = 78
+
+Reduced Chi^2 = 0.001692
+AIC = 14.395933, BIC = 22.629800
+
+X0		0.000000 # +/- 0.000000
+FUNCTION Core-Sersic-1D
+n		3.860567 # +/- 2.145627
+mu_b		15.231779 # +/- 1.212631
+r_e		22.370947 # +/- 10.836320
+r_b		0.344099 # +/- 0.770047
+alpha		3.790036 # +/- 40.116430
+gamma		0.139916 # +/- 0.554909
+
+Saving best-fit parameters in file "bestfit_parameters_profilefit.dat"
+All done!
+

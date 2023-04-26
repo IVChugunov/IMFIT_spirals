@@ -1,0 +1,18 @@
+Reduced Chi^2 equivalent = 1.012648
+AIC = 22790.497598, BIC = 22838.621487
+
+X0		75.0290
+Y0		74.9375
+FUNCTION Exponential
+PA		0.00450996
+ell		0.499931
+I_0		99.7617
+h		19.9518
+FUNCTION FlatSky
+I_sky		     20
+
+Saving best-fit parameters in file "bestfit_parameters_imfit.dat"
+
+(Elapsed time: 0.296071 sec for fit, 0.298998 sec total)
+Done!
+

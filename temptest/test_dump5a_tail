@@ -1,0 +1,18 @@
+
+AIC = -2611589.269141, BIC = -2611541.145252
+
+X0		75.0318
+Y0		74.9458
+FUNCTION Exponential
+PA		0.0387723
+ell		0.500019
+I_0		  99.72
+h		19.9584
+FUNCTION FlatSky
+I_sky		     20
+
+Saving best-fit parameters in file "bestfit_parameters_imfit.dat"
+
+(Elapsed time: 0.721141 sec for fit, 0.754091 sec total)
+Done!
+

@@ -1,0 +1,59 @@
+	Image file = tests/testimage_poisson_lowsn20.fits
+	* Using Poisson maximum-likelihood-ratio statistic instead of chi^2 for minimization!
+	* Nelder-Mead simplex solver selected!
+	configuration file = tests/imfit_reference/config_imfit_poisson.dat
+Reading data image ("tests/testimage_poisson_lowsn20.fits") ...
+naxis1 [# pixels/row] = 150, naxis2 [# pixels/col] = 150; nPixels_tot = 22500
+* No PSF image supplied -- no image convolution will be done!
+Function: Exponential
+Function: FlatSky
+7 total parameters
+Model Object: 22500 data values (pixels)
+ModelObject: mask vector applied to weight vector. (22500 valid pixels remain)
+6 free parameters (22494 degrees of freedom)
+Estimated memory use: 900000 bytes (878.9 KB)
+
+Performing fit by minimizing Poisson MLR statistic:
+Calling Nelder-Mead Simplex solver ..
+	N-M simplex: function call 20: objective = 25032.540666
+	N-M simplex: function call 40: objective = 23767.289224
+	N-M simplex: function call 60: objective = 23011.958653
+	N-M simplex: function call 80: objective = 22880.518520
+	N-M simplex: function call 100: objective = 22835.657296
+	N-M simplex: function call 120: objective = 22831.251277
+	N-M simplex: function call 140: objective = 22828.430959
+	N-M simplex: function call 160: objective = 22823.059759
+	N-M simplex: function call 180: objective = 22806.867713
+	N-M simplex: function call 200: objective = 22796.707836
+	N-M simplex: function call 220: objective = 22790.408596
+	N-M simplex: function call 240: objective = 22788.531911
+	N-M simplex: function call 260: objective = 22783.563327
+	N-M simplex: function call 280: objective = 22780.041833
+	N-M simplex: function call 300: objective = 22778.663861
+	N-M simplex: function call 320: objective = 22778.629101
+	N-M simplex: function call 340: objective = 22778.505997
+	N-M simplex: function call 360: objective = 22778.494774
+	N-M simplex: function call 380: objective = 22778.495166
+Nelder-Mead Simplex: status = 3 -- SUCCESS: ftol_rel or ftol_abs reached
+
+  POISSON-MLR STATISTIC = 22778.493863
+  NFEV = 391
+
+Reduced Chi^2 equivalent = 1.012648
+AIC = 22790.497598, BIC = 22838.621487
+
+X0		75.0290
+Y0		74.9375
+FUNCTION Exponential
+PA		0.00450996
+ell		0.499931
+I_0		99.7617
+h		19.9518
+FUNCTION FlatSky
+I_sky		     20
+
+Saving best-fit parameters in file "bestfit_parameters_imfit.dat"
+
+(Elapsed time: 0.654868 sec for fit, 0.659594 sec total)
+Done!
+

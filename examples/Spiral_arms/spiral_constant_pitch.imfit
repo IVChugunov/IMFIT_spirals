@@ -1,0 +1,23 @@
+X0 150
+Y0 150
+
+FUNCTION SpiralBranch
+m0		0.35
+m1		0
+m2		0
+m3		0
+PA		0
+inc		0
+fi0		190
+r0		8
+fi_max		400
+n		20
+is_clockwise	1
+I0		1
+r_e		15
+width_i	0
+outer_r_e	4
+inner_r_e	6
+fi_of_max	150
+outer_n	0.9
+inner_n	0.7

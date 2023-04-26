@@ -1,0 +1,48 @@
+	Image file = tests/faintstar.fits
+	configuration file = tests/imfit-mcmc_reference/config_imfit_faintstar.dat
+	RNG seed = 7
+Value from config file: gain = 4.720000 e-/ADU
+Value from config file: read noise = 1.150000 e-
+Value from config file: original sky = 124.940000
+Reading data image ("tests/faintstar.fits") ...
+naxis1 [# pixels/row] = 10, naxis2 [# pixels/col] = 10; nPixels_tot = 100
+* No PSF image supplied -- no image convolution will be done!
+* Pixel subsampling has been turned OFF.
+* No noise image supplied ... will generate noise image from input data image.
+Function: Gaussian
+6 total parameters
+6 free parameters (94 degrees of freedom)
+Model Object: 100 data values (pixels)
+ModelObject: mask vector applied to weight vector. (100 valid pixels remain)
+Estimated memory use: 3200 bytes (3.1 KB)
+Setting up MCMC-related arrays ...
+Setting nChains = 6 (nFreeParams)
+
+Start of MCMC processing...
+Beginning DREAM:
+              X0 = [     3.0,      8.0]
+              Y0 = [     3.0,      8.0]
+              PA = [   140.0,    170.0]
+             ell = [     0.0,      0.3]
+             I_0 = [   220.0,    320.0]
+           sigma = [     0.1,      1.5]
+Collapse outliers: 1
+Latin hypercube sampling...
+  shuffling (6, 6)...done.
+Chain 0: likelihood = -2616.01
+Chain 1: likelihood = -3352.15
+Chain 2: likelihood = -733.27
+Chain 3: likelihood = -2479.22
+Chain 4: likelihood = -2279.15
+Chain 5: likelihood = -2074.15
+[5000] exiting burn-in.
+[10000] performing convergence diagnostics: GR (it 10000): [0]1.00827 [1]1.00378 [2]1.01004 [3]1.00106 [4]1.00429 [5]1.00318 
+[15000] performing convergence diagnostics: GR (it 15000): [0]1.00129 [1]1.00196 [2]1.00465 [3]1.00690 [4]1.00460 [5]1.00663 
+Convergence detected!
+101410 likelihood function calls
+
+MCMC chains written to output files temptest/mcmc_test.1.txt through temptest/mcmc_test.6.txt
+(Elapsed time: 1.412121 sec)
+
+Done!
+

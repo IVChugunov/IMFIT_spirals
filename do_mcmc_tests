@@ -1,0 +1,276 @@
+#!/bin/bash
+#
+# Regression tests for imfit-mcmc
+#
+
+# Predefine some ANSI color escape codes
+RED='\033[0;31m'
+GREEN='\033[0;0;32m'
+NC='\033[0m' # No Color
+
+# create an integer variable for status (& counting number of failed tests)
+declare -i STATUS=0
+
+FAILED_TEXT=" ** Test failed. **"
+
+
+# create output directory for test_dump*, etc. files (will do nothing if
+# directory already exists)
+mkdir -p temptest
+
+
+echo ""
+echo "Running tests for imfit-mcmc..."
+
+# simple tests using small images; seed=7 to ensure repeatable pseudo-random numbers
+echo -n "   (now running MCMC chain (test 1)...)"
+./imfit-mcmc tests/faintstar.fits -c tests/imfit-mcmc_reference/config_imfit_faintstar.dat --no-subsampling --seed=7 -o temptest/mcmc_test &> temptest/test_dump_mcmc1
+echo ""
+
+if [ "$1" == "--all" ]
+then
+  # same, but now checking that we correct for image offset when we specify subsection
+  # of data image
+  echo -n "   (now running MCMC chain (test 2)...)"
+  ./imfit-mcmc tests/faintstar.fits[3:10,3:10] -c tests/imfit-mcmc_reference/config_imfit_faintstar.dat --no-subsampling --seed=7 -o temptest/mcmc_test2 &> /dev/null
+  echo ""
+else
+  echo "   (-- skipping test 2 --)"
+fi
+
+if [ "$1" == "--all" ]
+then
+  # 2c: testing that we can restart from previous iterations
+  echo -n "   (now running MCMC chain (test 3: restarting from previous chains)...)"
+  cp tests/mcmc_data/mcmc_test_short*.txt temptest/
+  # note that there's no point in specifying seed=7, bcs we wouldn't be starting at the same RNG
+  # state as the original imfit-mcmc run left off at
+  ./imfit-mcmc tests/faintstar.fits -c tests/imfit-mcmc_reference/config_imfit_faintstar.dat --no-subsampling --seed=1 -o temptest/mcmc_test_short --append &> temptest/test_dump_mcmc1c
+  echo ""
+else
+  echo "   (-- skipping test 3 --)"
+fi
+
+if [ "$1" == "--all" ]
+then
+  # 4: testing that we handle image sections OK
+  echo -n "   (now running MCMC chain (test 4: using image section)...)"
+  # note that we only do 2000 steps, since we just want to see if things trend
+  # in the right direction
+  ./imfit-mcmc examples/ic3478rss_256.fits[60:195,70:185] -c examples/config_sersic_ic3478_256.dat  --gain=4.725 --readnoise=4.3 --sky=130.14 --output=temptest/mcmc_test4 --max-chain-length=2000 --seed=1001 &> temptest/test_dump_mcmc1d
+  echo ""
+else
+  echo "   (-- skipping test 4 --)"
+fi
+
+
+
+
+# Testing to see if we catch input-image problems: all pixels masked, mismatched image sizes,
+# 2a: testing that we catch error: case of all pixels masked:
+./imfit-mcmc tests/ic3478rss_64x64.fits -c tests/imfit_reference/imfit_config_ic3478_64x64b.dat --mask tests/totalmask_64x64.fits  &> temptest/test_dump2a
+# 2b: testing that we catch error: case of mismatched image sizes:
+./imfit-mcmc tests/ic3478rss_64x64.fits -c tests/imfit_reference/imfit_config_ic3478_64x64b.dat --mask tests/n3073rss_small_mask.fits  &> temptest/test_dump2b
+
+# 2a: testing that we catch bad model-config file: missing parameter limit
+./imfit-mcmc tests/faintstar.fits -c tests/imfit-mcmc_reference/config_imfit_faintstar_nolims.dat --no-subsampling --seed=7 &> temptest/test_dump_bad0
+
+./imfit-mcmc -c tests/makeimage_reference/config_makeimage_sersictest512_bad1.dat tests/ic3478rss_64x64.fits &> temptest/test_dump_bad1
+./imfit-mcmc -c tests/makeimage_reference/config_makeimage_sersictest512_bad2.dat tests/ic3478rss_64x64.fits &> temptest/test_dump_bad2
+./imfit-mcmc -c tests/makeimage_reference/config_makeimage_sersictest512_bad3.dat tests/ic3478rss_64x64.fits &> temptest/test_dump_bad3
+./imfit-mcmc -c tests/makeimage_reference/config_makeimage_sersictest512_bad4.dat tests/ic3478rss_64x64.fits &> temptest/test_dump_bad4
+./imfit-mcmc -c tests/imfit_reference/config_imfit_sersictest512_badlimits1.dat tests/ic3478rss_64x64.fits &> temptest/test_dump_bad5
+./imfit-mcmc -c tests/imfit_reference/config_imfit_sersictest512_badlimits2.dat tests/ic3478rss_64x64.fits &> temptest/test_dump_bad6
+./imfit-mcmc -c tests/imfit_reference/config_imfit_sersictest512_badlimits3.dat tests/ic3478rss_64x64.fits &> temptest/test_dump_bad7
+./imfit-mcmc -c tests/imfit_reference/config_imfit_sersictest512_badlimits3.dat tests/ic3478rss_64x64.fits &> temptest/test_dump_bad7
+./imfit-mcmc -c tests/imfit_reference/config_imfit_badparamline.dat tests/ic3478rss_64x64.fits &> temptest/test_dump_bad8
+
+
+
+
+echo ""
+
+
+# Note that we diff only the first n lines to avoid irrelevant variations in the
+# elapsed-time output (reported at the end of the file).
+
+printf "*** Diff comparison with archives: first test... "
+# skip last 4 lines to avoid trying to compare elapsed times
+./python/diff_printouts.py temptest/test_dump_mcmc1 tests/imfit-mcmc_reference/mcmc_textout1 --skip-last=4
+STATUS+=$?
+
+printf "    Comparing first output chain file from test 1... "
+# skip first three lines of output file to avoid comparing timestamps
+tail -n +3 temptest/mcmc_test.1.txt > temptest/mcmc_test.1.txt_skip3
+if (diff --brief temptest/mcmc_test.1.txt_skip3 tests/imfit-mcmc_reference/mcmc_ref1.1.txt_skip3)
+then
+  printf " OK\n"
+else
+  echo -e "   ${RED}Failed:${NC}  Output MCMC chain file temptest/mcmc_test.1.txt differs from reference file tests/imfit-mcmc_reference/imfit-mcmc_reference/mcmc_ref1.1.txt_skip3"
+  STATUS+=1
+fi
+
+if [ "$1" == "--all" ]
+then
+  printf "    Comparing first output chain file from test 2 (fitting faintstar.fits[3:10,3:10])... "
+  # skip first two lines of output file to avoid comparing timestamps
+  tail -n +3 temptest/mcmc_test2.1.txt > temptest/mcmc_test2.1.txt_skip3
+  if (diff --brief temptest/mcmc_test2.1.txt_skip3 tests/imfit-mcmc_reference/mcmc_ref2.1.txt_skip3)
+  then
+    printf " OK\n"
+  else
+    echo -e "   ${RED}Failed:${NC}  Output MCMC chain file temptest/mcmc_test2.1.txt differs from reference file tests/imfit-mcmc_reference/mcmc_ref2.1.txt_skip3"
+    STATUS+=1
+  fi
+fi
+
+if [ "$1" == "--all" ]
+then
+  printf "    Comparing first output chain file from test 3 (restart + append)... "
+  # skip first two lines of output file to avoid comparing timestamps
+  tail -n 100 temptest/mcmc_test_short.1.txt > temptest/mcmc_test_short.1.txt_last100
+  if (diff --brief temptest/mcmc_test_short.1.txt_last100 tests/imfit-mcmc_reference/mcmc_test_short_ref.1.txt_last100)
+  then
+    printf " OK\n"
+  else
+    echo -e "   ${RED}Failed:${NC}  Output MCMC chain file temptest/mcmc_test2.1.txt differs from reference file tests/imfit-mcmc_reference/mcmc_test_short_ref.1.txt_last100"
+    STATUS+=1
+  fi
+fi
+
+if [ "$1" == "--all" ]
+then
+  printf "    Comparing first output chain file from test 4 (fitting ic3478rss_256.fits[60:195,70:185])... "
+  # skip first two lines of output file to avoid comparing timestamps
+  # note that reference file was generated using imfit-mcmc and a cutout of the
+  # data image (corresponding to the specified image section)
+  tail -n +3 temptest/mcmc_test4.1.txt > temptest/mcmc_test4.1.txt_skip3
+  if (diff --brief temptest/mcmc_test4.1.txt_skip3 tests/imfit-mcmc_reference/mcmc_ref4.1.txt_skip3)
+  then
+    printf " OK\n"
+  else
+    echo -e "   ${RED}Failed:${NC}  Output MCMC chain file temptest/mcmc_test4.1.txt differs from reference file tests/imfit-mcmc_reference/mcmc_ref4.1.txt_skip3"
+    STATUS+=1
+  fi
+fi
+
+
+echo -n "*** Diff comparison with archives: catching the case of all data pixels masked... "
+./python/diff_printouts.py tests/test_dump_mcmc2a temptest/test_dump2a
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: catching the case of mismatch in data and mask sizes... "
+./python/diff_printouts.py tests/test_dump_mcmc2b temptest/test_dump2b
+STATUS+=$?
+
+
+# Note that for the following, we can compare with the imfit reference files,
+# because the output should be the same
+
+echo -n "*** Diff comparison with archives: bad config file 0 (missing parameter limits)... "
+if (diff --brief temptest/test_dump_bad0 tests/imfit_reference/imfit_textout_bad0)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}  Diff output:"
+  diff temptest/test_dump_bad0 tests/imfit_reference/imfit_textout_bad0
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad config file 1... "
+if (diff --brief temptest/test_dump_bad1 tests/imfit_reference/imfit_textout_bad1)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}  Diff output:"
+  diff temptest/test_dump_bad1 tests/imfit_reference/imfit_textout_bad1
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad config file 2... "
+if (diff --brief temptest/test_dump_bad2 tests/imfit_reference/imfit_textout_bad2)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}  Diff output:"
+  diff temptest/test_dump_bad2 tests/imfit_reference/imfit_textout_bad2
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad config file 3... "
+if (diff --brief temptest/test_dump_bad3 tests/imfit_reference/imfit_textout_bad3)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}  Diff output:"
+  diff temptest/test_dump_bad3 tests/imfit_reference/imfit_textout_bad3
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad config file 4... "
+if (diff --brief temptest/test_dump_bad4 tests/imfit_reference/imfit_textout_bad4)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}  Diff output:"
+  diff temptest/test_dump_bad4 tests/imfit_reference/imfit_textout_bad4
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad config file 5... "
+if (diff --brief temptest/test_dump_bad5 tests/imfit_reference/imfit_textout_bad5)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}  Diff output:"
+  diff temptest/test_dump_bad5 tests/imfit_reference/imfit_textout_bad5
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad config file 6... "
+if (diff --brief temptest/test_dump_bad6 tests/imfit_reference/imfit_textout_bad6)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}  Diff output:"
+  diff temptest/test_dump_bad6 tests/imfit_reference/imfit_textout_bad6
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad config file 7... "
+if (diff --brief temptest/test_dump_bad7 tests/imfit_reference/imfit_textout_bad7)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}  Diff output:"
+  diff temptest/test_dump_bad7 tests/imfit_reference/imfit_textout_bad7
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad parameter specification... "
+if (diff --brief temptest/test_dump_bad8 tests/imfit_reference/imfit_textout_bad8)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}  Diff output:"
+  diff temptest/test_dump_bad8 tests/imfit_reference/imfit_textout_bad8
+  STATUS+=1
+fi
+
+
+echo ""
+if [ $STATUS -eq 1 ]
+then
+  echo -e "${RED}One test failed!${NC}"
+elif [ $STATUS -gt 1 ]
+then
+  echo -e "${RED}${STATUS} tests failed!${NC}"
+else
+  echo -e "${GREEN}All tests passed.${NC}"
+fi
+
+echo ""
+echo "Done."
+echo ""
+
+exit $STATUS

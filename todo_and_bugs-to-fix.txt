@@ -1,0 +1,1696 @@
+
+** BUGS TO FIX:
+
+
+
+** NEAR-TERM FUTURE TODO:
+
+[ ] Compilation with Vagrant VMs
+	[x] Test current default (shared-library) compilation
+		vagrant-$ scons -c ; scons makeimage && ./do_makeimage_tests
+		vagrant-$ scons imfit && ./do_imfit_tests
+		
+	[x] Test current --static compilation
+		vagrant-$ scons -c ; scons --static makeimage && ./do_makeimage_tests
+		vagrant-$ scons --static imfit && ./do_imfit_tests
+	
+	[ ] Set up 32-bit Vagrant VM for testing
+		[ ] Test imfit-1.7.1-linux-32.tar.gz on the 32-bit VM
+
+
+[ ] Replace "function block" with "function set" in code and documentation
+	[x] Replace in docs
+	[ ] Replace in code
+		[] Replace block and Block in model_object
+		[x] Replace in config_file_parser
+		[x] Replace Block in add_functions.h and add_functions.cpp
+		[ ] Replace Block in *main.cpp
+			[x] Replace in makeimage_main.cpp; compile & test
+			[ ] Replace in imfit_main.cpp; compile & test
+			[ ] Replace in mcmc_main.cpp; compile & test
+
+[ ] Update documentation with new functions
+	[ ] Add description of GaussianRingAz to imfit_howto
+	[ ] Add description of FlatBar to imfit_howto
+
+
+[x] Modify Imfit to allow labels for individual components in config/bestfit files?
+	E.g.,
+	"FUNCTION Sersic # LABEL inner bulge"
+	Maybe simplest: internally, *all* functions get a label, which defaults to "" for
+	no specified label
+	[x] Write utils code to extract label text from FUNCTION line
+		search for "LABEL" in the line
+			-- allows for possibility of "FUNCTION Sersic   LABEL inner bulge"
+			which we might allow for later versions (putting it in the comment
+			part of the line ensures config file can still be read by earlier
+			versions of Imfit)
+	[x] Figure out how to store (optional) labels in returns from config-file
+		processing
+		[x] Modify AddFunctionName to also capture and store function labels
+		in extra output parameter
+	
+	[x] Figure out how to pass function labels from ReadConfigFile to main()
+		-- Necessary for imfit and imfit-mcmc; *useful* for makeimage in case
+		of --print-fluxes
+		[x] Add unit testing of label return for ReadConfigFile
+			[x] Add new test config file with labels
+			[x] Write additional unit tests
+			
+	[x] Modify main() in all three programs to include functionLabels parameter
+	for calls to ReadConfigFile()
+		[x] Add to makeimage main()
+		[x] Compile and run makeimage tests
+		[x] Add to imfit main()
+		[x] Compile and run imfit tests
+		[x] Add to imfit-mcmc main()
+		[x] Compile and run imfit-mcmc tests
+
+	[x] Figure out how to pass label info to ModelObject
+		[x] Modify AddFunctions to take labels vector
+			-- places that call AddFunctions: *_main.cpp
+		[x] Update unittest_add_functions.t.h to test this
+		
+		[x] Update makeimage_main.cpp to use modified AddFunctions
+		[x] Compile and run makeimage tests
+		[x] Update imfit_main.cpp to use modified AddFunctions
+		[x] Compile and run imfit tests
+		[x] Update mcmc_main.cpp to use modified AddFunctions
+		[x] Compile and run imfit-mcmc tests
+	
+	[x] Figure out how to get ModelObject to add label to "FUNCTION xxx" lines
+		in output
+		-- Places where "FUNCTION <fname>" is printed and label might be also:
+					
+			[x] model_object.cpp:1803 ModelObject::PrintModelParamsToStrings
+				funcName = functionObjects[n]->GetShortName();
+				stringVector.push_back(PrintToString("%sFUNCTION %s\n", prefix, funcName.c_str()));
+
+			[x] makeimage_main.cpp:320 
+				theModel->GetFunctionNames(functionNames);
+					headerString = PrintToString("FUNCTION %s", functionNames[i].c_str());
+			
+			[x] --print-fluxes mode
+		
+	[x] Add testing of function-label input/output to do_imfit_tests.sh
+
+
+[X] Double-broken exponential (for Nacho)
+	[X] Figure out what's causing minor-axis discontinuities
+		-- initial creation of ell=0.5 image shows good behavior along major
+		axis, strange behavior at faint levels along minor axis
+		[X] Try generating 1D minor-axis image
+			[X] Add printing code to func_double-broken-exp.cpp (at what radius
+			do we switch to pure exponential calculation?)
+			[X] Generate 1D minor-axis image
+			
+			$ ./makeimage config_makeimage_double-broken-exp_1d-minoraxis.dat -o modelimage_doublebroken_1d.fits
+			imdatamodel_mb1d = fits.getdata("/Users/erwin/coding/imfit/modelimage_doublebroken_1d.fits")
+			clf();semilogy(imdatamodel_1d[0,:], 'ko', ms=2)
+			
+			scaledR1 > 100 at |r| >= 152 (and for |r| < 152, not)
+				assuming q=0.5, this is r >= 76
+	[X] Generate large-radii values (from Python code) for unit tests
+	[X] Add fixed code from Python to double-broken-exp.cpp
+		[X] Run unit tests
+		[X] Check 1D minor-axis image, using commands above
+
+
+[ ] Improvements to imfit.py:
+	[x] Add suggested pandas-related code to Python utilities
+		-- see email from Justus Neumann, 14 May 2018
+	[x] Add file-existence checking
+
+	
+[X] Unit tests for FerrersBar3D
+
+
+[ ] GaussianRingAz with one intensity parameter
+	Currently, it has A_maj and A_min; better to have A_maj and A_min_fraction_A_maj
+	[x] Create GaussianRingAz2 function
+	[x] Add function to add_functions.cpp, SConstruct
+	[x] Test makeimage
+		[x] Generate output image from n4608 IRAC1 model using GaussianRingAz
+		[x] Generate equivalent image using GaussianRingAz2; compare
+	[x] Change name from GaussianRingAz2 to GaussianRingAz
+	[ ] Add description to documentation
+
+[X] Fix image-comparison regression tests
+	OK, the weird case is biggertest.fits, which has two (and only two) pixels
+	which differ by ~ 0.0167 between the Mac and Linux versions; all other
+	pixels appear to be identical. The discrepant pixels are at (x,y) = (31,23)
+	and (31,39)
+		The first function-block has center at 31,31; the two discrepant pixels
+		are at y = 31 +/- 8
+	
+	The difference shows up in the first Sersic function of the first function-block:
+	the mac version has I = 10.0, while the Linux version has I = 10.0167
+	
+	OK, what seems to be happening is this:
+	1. The image created on the Linux VM is fine.
+	2. *Sometimes*, when the image is copied from the VM to the Mac side,
+	one or more pixels (minor-axis only, for some reason) with values of 10.0
+	get converted to 10.016664.
+	
+	
+	All *other* files agree to w/in 1e-13
+	
+	[X] Update compare_fits_files.py to use numpy.allclose
+		[X] Update to use np.allclose( rtol=0, atol=1e-12)
+		[X] Test atol=1e-12 on existing Mac images
+			[X] write Python or shell script to do image comparisons from
+				makeimage regression tests
+		[X] Convert do_makeimage_tests to use new function
+		[X] Test atol=1e-12 on Linux images (on Mac)
+		[X] Move osx/*.fits images up one level
+		[X] Rewrite do_makeimage_tests to skip the OS testing and subdirectory use
+	
+	[X] Add do_makeimage_tests to travis.yml
+
+
+[X] 2D Ferrers bar model
+	-- for comparison with GALFIT; also with Laurikainen et al. models?
+	[x] Check Laurikainen et al. models to see if it's same as GALFIT
+
+
+[X] Add Latin Hypercube Sampling as option for Differential Evolution
+	-- i.e., use LHS instead of current RandomUniform function
+	in DESolver::Setup (leave *other* uses of RandomUniform as they are!)
+	-- notes/note_on_differential-evolution_tuning.txt
+	-- MARCH 2019: This doesn't seem to make fits any faster (and might even
+	make some slightly slower)...
+	[x] Plan possible tests of DE fitting
+		[x] Look for possible notes on when I adjusted DE parameters?
+	[x] Write & test C++ code for LHS
+	[x] Incorporate LHS code into DESolver.cpp
+	[x] Add command-line option to imfit_main.cpp for LHS with DE
+		"--de-lhs" ?
+		[x] Add option to options_imfit.h structure
+		[x] Add code to imfit_main.cpp: ProcessInput
+	[x] Figure out how to pass LHS option into DiffEvolnFit()
+		-- Extra optional parameter for DispatchToSolver(), which that function
+		knows to pass on to DiffEvolnFit(), but not to others?
+		
+    case DIFF_EVOLN_SOLVER:
+      if (verboseLevel >= 0)
+        printf("Calling Differential Evolution solver ..\n");
+      fitStatus = DiffEvolnFit(nParametersTot, parameters, parameterInfo, modelObj, fracTolerance, 
+      							verboseLevel, solverResults, rngSeed);
+    case DIFF_EVOLN_SOLVER_LHS:
+      if (verboseLevel >= 0)
+        printf("Calling Differential Evolution solver (Latin hypercube sampling)..\n");
+      fitStatus = DiffEvolnFit(nParametersTot, parameters, parameterInfo, modelObj, fracTolerance, 
+      							verboseLevel, solverResults, rngSeed, true);
+
+
+
+
+[ ] Test image convolution with overpsf_scale = even number
+	-- e.g., current WFC/IR empirical PSF images are 101x101 with 4x4 oversampling;
+	PSF center is at 51,51, like it should be
+	http://www.stsci.edu/hst/wfc3/analysis/PSF
+	-- some of the (outer) pixel values are slightly negative...
+	[ ] Negative pixels?
+		[ ] Try convolving model image with PSF image as-is
+		[ ] Try convolving model image with PSF image that has had < 0 pixels set = 0
+	[ ] Extract sample WFC/IR PSF from empirical-PSF file
+	[ ] Find/make a good WFC3/IR galaxy image
+	[ ] Trial fits with regular (TinyTim?) PSF
+	[ ] Trial fits with oversampled PSF	
+		[ ] Trial fits with 
+	
+
+[ ] Check input: Catch cases of oversampled regions that lie or extend outside data
+image (accounting for data image subset, if any)
+	-- do we check in _main.cpp (where we usually catch errors in user input, and where 
+	in principle we know all the original dimensions and specifications), or in 
+	SetupModelObject (more centralized, with less code duplication, but where we don't 
+	know original-data-image coordinates), or in ModelObject::AddOversampledPsfInfo 
+	(more centralized, etc., but we may not know data image dimensions)
+	-- maybe best to do this in main(), via a call to new method in PsfOversamplingInfo
+	(note that we already pass X0_offset,Y0_offset when setting up PsfOversamplingInfo)
+
+[ ] Check vectorization of mpfit.cpp
+	-- $ g++-7 -o solvers/mpfit.o -c -O3 -g0 -msse2 -mavx -fopt-info-vec-optimized -std=c++11 -fopenmp -DANSI -DUSING_SCONS -DFFTW_THREADING -DUSE_OPENMP -I. -I/usr/local/include -Icore -Isolvers -Icdream -Icdream/include -Ifunction_objects -Ifunction_objects_1d -Iprofile_fitting solvers/mpfit.cpp
+	[ ] Compile code with -fopt-info-vec-optimized to see what was & wasn't vectorized
+	[ ] Identify large loops (e.g, for i < m) that weren't vectorized
+
+
+[ ] Refactoring of mpfit.cpp
+	[X] Go through code and check which variables declared as "static <type> = y" can
+	be redeclared as "const <type> = y"
+		-- clearer indication to reader that these are *constants*, not changeable
+		persistent variables; possibly allows compiler to be a little more efficient
+		if it knows certain "variables" are really constants?
+
+
+		
+[ ] MCMC program: "imfit-mcmc"
+	
+	[X] Flag error and quit when config file has unconstrained parameters
+		-- i.e., parameters with no constraints is OK for L-M or N-M fits, but
+		not for DE fits and *not* for MCMC analysis
+		-- current code apparently converts unconstrained parameters into 0,0 limits
+		[X] Locate code which checks for missing parameter constraints in DE mode
+			-- DiffEvolnFit in diff_evoln_fit.cpp
+				checks parameterLimits input object; prints error message and
+				returns -2 if one or more limits are missing
+		[X] Locate where we might check parameterLimits in MCMC code
+		[X] Implement check for missing parameter limits
+		
+		
+	[ ] Feedback from dream()
+		[ ] Detect failed opening of output files, complain and exit
+		[ ] Detect failed write to output files, complain and exit?
+		[x] Return values indicating: convergence vs max-iterations
+		[x] Record and report cumulative number of likelihood evaluations
+		[ ] Print (and maybe report) total number of iterations
+
+	[ ] Possible speedup for dream(): delay writing of output until end
+		of process
+		-- currently, dream() writes output once per generation for each chain.
+		Possibly there is some cleverness in the streams output where things are
+		buffered until later, but if not, we might gain some speedup (esp. on 
+		machines with traditional hard disks) if we delay writing the chains
+		until the end.
+		
+	[ ] No-convergence-test mode
+		-- flag which tells dream() to ignore results of convergence tests and just
+		keep on going until p->maxEvals is reached.
+		-- "--ignore-convergence" ?
+		
+	[x] Better headers for MCMC output
+		[x] Look for code that defines bootstrap output header
+		[x] Adapt code for bootstrap output header to MCMC output
+		[x] Add printing of input parameter file to header
+
+	[x] Create mcmc main.cpp as copy of imfit_main.cpp
+		[x] Make copy
+		[x] Change internal strings describing name
+		
+		[x] Remove command-line code specifying fit algorithm
+		[x] Remove command-line code specifying fit parameters (e.g., tolerance)
+		[x] Remove code in main() which calls fitting algorithm
+		[x] Remove bootstrap-related code in main()
+	
+	[x] Create target in SConstruct file for mcmc program
+		[x] Copy existing makeimage code
+		[x] Modify code to use new program name
+	
+	[x] Create simple regression test for mcmc program
+		[x] Identify small test image (e.g., exponential, very small image)
+		[x] Do test run of MCMC code to ensure output look sensible
+		[x] Set up run of MCMC code using fixed RNG seed
+		[x] Set up do_mcmc_test.sh
+		[x] Test run of do_mcmc_test.sh
+	
+	[x] Add to regression tests for imfit-mcmc
+		[x] Add some error-detecting regression tests
+		
+	[x] Link/copy/add cdream code
+		[x] 1. create symlink to cdream code
+		[x] 2. create new subdirectory holding cdream code (and add code to repo)
+	
+	[x] Options struct for mcmc program
+		[x] Add CDREAM-related elements from profilefit_mcmc
+		[x] Add command-line processing code to fill in CDREAM-related elements
+	
+	[x] Add cdream-related stuff to main
+		[x] Add declaration and setup of dream_pars struct
+		[x] Add code passing command-line options to dream_pars
+		
+	[x] Cleanup of main
+		[x] Remove parameterInfo-related code
+		
+	[x] Command-line options for mcmc program
+	
+	[x] Locate image, model used for bootstrap demo in Erwin 2015
+	/Users/erwin/Documents/Working/Papers-Finished/Paper-imfit/image_tests/sersictest_lowsn200.fits
+	~/coding/imfit/imfit -c config_imfit_sersic1.dat sersictest_lowsn200.fits --mlr --bootstrap 500 --save-bootstrap bootstrap_out_lowsn200_modcash.dat
+	Both files copied to ~/coding/imfit
+
+		./imfit -c config_imfit_sersic1.dat sersictest_lowsn200.fits --mlr --bootstrap 500 --save-bootstrap bootstrap_out_lowsn200_500.dat
+		t = 20.0 sec
+		./imfit-mcmc -c config_imfit_sersic1.dat sersictest_lowsn200.fits --mlr -o mcmc_out_lowsn200
+		t = 353 sec
+		
+		colnames, d_mcmc_lowsn200 = MergeChains('mcmc_out_lowsn200', last=5000)
+
+	[x] Clean up/rationalize output chain files
+		[x] "gen" is currently useless cycling of 0,...9,
+	
+	[ ] replace C++ streams with stdio?
+		[x] replace C++ streams with stdio in dream_initialize.cpp
+		[x] replace C++ streams with stdio in dream_pars.cpp
+		[ ] replace C++ streams with stdio in dream.cpp
+		[x] replace C++ streams with stdio in gelman_rubin.cpp
+		[x] replace C++ streams with stdio in gen_CR.cpp
+
+	[ ] Command-line option to do N rounds of image generation to estimate time/model?
+		--estimate-time = flag to do time estimate (including, by default, 1 round of
+			model-image-generation)
+		--timing <N> = optional command specifying number of model-image-generation
+			rounds to do (as in makeimage)
+		
+		-- Print summary of estimated run time
+			minimum time = t_model * nBurnin * numChains
+			maximum time = t_model * maxEvals * numChains
+		Note that main loop in dream.cpp is
+		for (int t = prevLines + 1; t < p->maxEvals; ++t) {
+		which is guaranteed to run until
+		t >= burnInStart + p->burnIn
+			where burnInStart is 0 by default (and only gets reset if the algorithm
+			re-enters burn-in, so we can safely assume that the *minimum*
+	
+	[ ] Python script to convert user-specified line in an MCMC output file to
+	makeimage/imfit config file
+		-- Also a version to do same with bootstrap output?
+		-- Internal code to hold functions+parameters in form similar to Andres' code??
+	
+	[x] Modify dream.cpp: Experiment with converting every-5th-generation code in dream.cpp (roughly,
+	lines 205--225) to be more like what Vrugt et al. do
+		-- Vrugt et al. seem to recommend setting gamma = 1.0 every 5th generation
+		-- Code in dream.cpp 
+			[x] remove lines ~ 205--225 ("if (gammaGeneration++ == 5) { ... }")
+			[x] modify line ~ 269 ("gamma = 2.38/sqrt(2.0*updateDim[i]*delta);") 
+			to set gamma = 1.0 if t % 5 == 0
+	
+	[ ] Modify dream.cpp: Add beta_0 parameter from Vrugt 2016?
+		-- beta_0 is an optional scaling of the normal gamma: gamma' = beta_0 * gamma
+		By default, beta_0 = 1.0; Vrugt 2016 suggests beta_0 between 0.25 and 0.5 can
+		be useful for complicated, multi-dimensional posteriors
+			[] Add beta_0 parameter to parameter struct
+			[] modify line ~ 269 ("gamma = 2.38/sqrt(2.0*updateDim[i]*delta);") 
+			to be something like "gamma = beta_0 * 2.38/sqrt(2.0*updateDim[i]*delta);"
+			[] Test beta_0 = 0.25 and 0.5 to see if it helps or hinders us
+
+	[ ] Modify dream.cpp: Add proper handling of parameter bounds ??
+		-- currently, dream.cpp uses parameter bound by setting likelihood = -INFINITY
+		if proposal variable value is outside bounds (thus rejecting the proposal)
+		-- see p.269 of Vrugt 2016 for options on handling parameter bounds
+	
+
+
+[..] Possible optional parameters for image functions in config file
+	"params"? "settings?"
+	-- ways to specify optional settings, or even input parameter files that
+	function can read when first starting up
+	-- optional keywords after FUNCTION but before parameters?
+		e.g.
+		FUNCTION blah
+		OPTIONAL_PARAMS_START
+		xxx
+		OPTIONAL_PARAMS_END
+		
+		or even just
+		FUNCTION blah
+		xxx
+		OPTIONAL_PARAMS_END
+		
+		The following should be acceptable (and interpreted as "no optional params supplied")
+		FUNCTION blah
+		OPTIONAL_PARAMS_START
+		OPTIONAL_PARAMS_END
+
+	Read and stored as something like dict of string: string pairs. If this exists
+	for a given function, then it is passed to function object just after initialization
+	(e.g., just after calling AddFunction)
+	
+	Output (e.g., best-fit parameters): do we list 
+		For best-fit params, we *should* list anything that was explicitly set by
+		the user
+		If none of the optional params were set by the user, should we still list them?
+		(Confusing if best-fit output doesn't match format of config file!)
+		(Alternate view: optional params *define* the function, so they should always
+		be listed...)
+		
+	Function object has extra method for handling input dict (defaults to a do-nothing)
+		-- e.g., it knows which values to convert to ints or doubles, how to
+		interpret different keywords, etc.
+
+	    virtual int FunctionObject::SetExtraParams( map<string, string> )
+	
+	
+  vector<map<string, string>> optionalParamsVect;
+  # one map per function; most or all such maps probably will be empty
+  
+  for (n = 0; n < nFunctions; n++) {
+    if (fblockStartFlags[n] == true) {
+      // start of new function block: skip over existing x0,y0 values
+      offset += 2;
+    }
+    functionObjects[n]->SetExtraParams(optionalParamsVect[n]);
+    functionObjects[n]->Setup(params, offset, x0_all, y0_all);
+    offset += paramSizes[n];
+  }
+  
+  OR
+    if (functionObjects[n]->HasExtraParams())
+      functionObjects[n]->SetExtraParams(optionalParamsVect[n]);
+  
+  SIMPLER APPROACH:
+     extra params are added to function *once*, when it is created inside
+     AddFunctions (add_functions.cpp)
+     	-- this way, ModelObject doesn't need to know about the extra options
+     	at all! (Think of it this way: optional parameters are for specializing
+     	the function *before* it is used in the model, and shouldn't ever need
+     	to be adjusted during the fitting process.)
+     		-- only problem: how can we record the optional-parameter values in
+     		the output?
+     		-- New method for FunctionObject which prints out extra params
+     		E.g., in ModelObject::PrintModelParamsToStrings, 
+     		just after printing the function name, we check to see if it has optional 
+     		parameters, and if so, we ask the FunctionObject to print their names & values
+     		(Note that we shouldn't need to modify PrintModelParamsHorizontalString,
+     		because that's used in bootstrap and MCMC output, where the header of the
+     		file has the original or best-fit values, which is where we'd print the
+     		optional parameters, and because the optional parameters aren't part of
+     		the fit/MCMC process!)
+
+		Uses:
+			1. ReadConfigFile retrieves optional params in optional-params-vector
+				*_main.cpp; config_file_parser.cpp
+			2. AddFunctions takes optional-params-vector, uses it to modify FunctionObjects
+			via their SetExtraParams methods
+				add_functions.cpp; FunctionObjects
+			3. ModelObject gets parameter names and value from FunctionObjects as
+			part of ModelObject::PrintModelParams and ModelObject::PrintModelParamsToStrings
+				model_object.cpp; FunctionObjects
+			
+		[x] Add input method to FunctionObject
+			[x] Write unit tests to check input and processing of simple case
+			[x] Write code to pass unit tests
+		[x] Add input method to 2D FunctionObject subclass
+			[x] Write unit tests to check input and processing of 2D FunctionObject subclass
+			[x] Write code to pass unit tests
+			
+		[] Add processing code to config_file_parser.cpp
+			-- needs to accept & return an optional-params vector< map<string,string> >
+			[x] Write sample config file with optional parameters
+				-- config_makeimage-optional_params*.dat
+			[x] Write unit tests for VetConfigFile
+			[] Write unit test for ReadConfigFile to check input and processing of 1 optional parameter
+			[] Write unit test for ReadConfigFile to check input and processing of multiple optional parameters
+			[] Write unit test for ReadConfigFile to check input and processing of multiple optional parameters
+				for multiple functions
+			[] Write code (modify ReadConfigFile) to pass unit tests
+		[] Modify code in _main.cpp to set up optional-params vector for calls to
+		ReadConfigFile and then pass it into call to AddFunction
+			[] makeimage_main.cpp
+				[x] add code
+				[] add regression test to see that we correctly use GaussianExtraParams
+					-- i.e., config file w/ and w/o extra-parameter specification
+					-- compare output images against reference images
+					-- Problem: this only works if we compile makeimage with GaussianExtraParams,
+					but that is currently only included if we use -DUSE_TEST_FUNCS
+			[x] imfit_main.cpp
+			[x] mcmc_main.cpp
+
+		[] Add printout code to FunctionObject
+			-- to be used in e.g. ModelObject::PrintModelParams and also in
+			ListFunctionParameters in add_functions.cpp [might be confusing, though,
+			since these are *optional* parameters
+				==> new command-line option "--list-parameters-with-options" ?]
+		[] Modify ModelObject::PrintModelParams and ModelObject::PrintModelParamsToStrings
+		to check for and get optional-params from FunctionObjects
+			[] Add unit test (to unittest_model_object) to check PrintModelParamsToStrings
+			[] Write code to pass unit test
+			[] Modify PrintModelParams
+		[] Add input method to ModelObject
+			[] Write unit test to check input and processing of 1 or more input dicts
+			[] Write code to pass unit tests
+
+		
+		[X] Add optional-parameter processing code to func1d_spline.cpp
+			-- additive constant
+			[X] Write unit test to check input and processing
+			[X] Write code to pass test
+			[X] Generate and check output
+				[X] config file without optional parameter
+				[X] config file with optional parameter
+				[X] config file with optional parameter (different value)
+
+
+
+[ ] Optional linking of component orientations within a function set:
+	PA [position angle], INCLINATION [for 3D objects]
+	
+	In the individual-function parameter lists, we use "link=NAME", where
+	NAME = one of the allowed function-set parameters (i.e., PA or INCLINATION)
+	
+	E.g., a function set consistent of a Gaussian and an Exponential with
+	the exact same PA:
+	
+	X0 		 	40		35,45
+	Y0			50		45,55
+	PA_set	15		0,30
+	FUNCTION Gaussian
+	PA		link=PA_set
+	ell		0.3		fixed
+	I_0		100
+	sigma	1.0
+	FUNCTION Exponential
+	PA		link=PA_set
+	ell		0.5		0.2,0.8
+	I_0		10		0,50
+	h		100		50,200
+	
+	Need some way of tagging parameter vector so we know which individual-function
+	parameters are duplicated
+		-- I.e., *remove* those parameters from the main parameter vector sent to
+		the solver or MCMC; have logic in ModelObject which can copy PA_set
+		value 
+		
+	
+	Note that these are similar to but also *orthogonal* to the image-description
+	parameters; perhaps we can use some of the same logic for assembling and
+	disassembling parameter vectors
+	
+	Conceptually, we have *set parameters* -- X0,Y0,PA_set,inc_set --
+	and function parameters. All functions in a set already refer to X0,Y0 in the 
+	set parameters
+	
+	[X]How do we coordinate PA between 2D and 3D image functions?
+		OK, our standard definition for a 3D function's line of nodes is
+		the *same* as for 2D functions, so we're OK there
+		What about PA for e.g. GaussianRing3D or FerrersBar3D? For now, don't
+		worry about it...
+	
+	[-]Add SetPA() method to FunctionObject, which overrides any internal extraction
+	of PA from main parameter vector?
+		-- this implies that we *know* which parameters are PA-related, which
+		is maybe too much specialization (or too much information in ModelObject
+		vs in the FunctionObjects)
+	OR:
+	[-]Always pass in X0,Y0,PA,inc to all functions; let functions decide what to
+	do with them. (Needs a way of telling functions that they're supposed to use
+	set PA and/or inc when setting them up.)
+		-- We would still need logic in main to remove unneeded PA and inc parameters
+		from the main parameter vector, and logic in ModelObject to add in (dummy)
+		values to the parameters passed to the FunctionObjects ...
+
+
+
+[ ] Separate the code which does model-image-generation timing into separate file
+	(so it can be used by both makeimage and imfit-mcmc)
+	
+[-] Implement Kahan summation in ModelObject::FindTotalFluxes
+	-- http://stackoverflow.com/questions/18013345/openmp-parallel-for-reduction-delivers-wrong-results
+	[x] Compute some current flux outputs (e.g., including correct total flux for Exponential)
+	[x] Implement Kahan summation
+	[x] Compare results with/without Kahan summation
+	
+	RESULT: for case of simple Gaussian model, Kahan summation took 2--3 times as long
+	and produced *no* difference in calculated flux (at 10^-5 level), even for a
+	very extended Gaussian.
+
+
+[] Convert total-pixel-number integer variables to long
+	[X]model_object.h: nModelVals, nDataVals, nValidDataVals, nOversampledModelVals
+	[X]model_object.cpp: 
+		ModelObject::AddErrorVector( int nDataValues
+		ModelObject::AddMaskVector( int nDataValues
+		ModelObject::AddPSFVector( int nPixels_psf
+		ModelObject::AddOversampledPSFVector( int nPixels
+		theModel->GetNValidPixels() -- should return long
+		int ModelObject::FinalSetupForFitting( ) -- nNonFinitePixels, nNonFiniteErrorPixels
+		Assorted for-loop index variables when looping over pixels
+		bootstrap indices
+			-- also make sure RNG can return long values
+
+	[X]convolver.h: nPixels_image, nPixels_psf, nPixels_padded; nPixels_padded_complex
+	[X]convolver.cpp: Convolver::ShiftAndWrapPSF( ) -- pos_in_psf, pos_in_dest;
+	oversampled_region.h: nModelVals
+	oversampled_region.cpp: ---
+	[X]image_io.cpp: 
+		ReadImageAsVector -- nPixelsTot
+	[X]makeimage_main.cpp: 
+	[X]imfit_main.cpp: 
+	[X]print_results.cpp
+	[X]statistics.cpp -- aic, bic [nValidPixels]
+
+
+[..] Add "const" specifiers to input parameters of functions, as appropriate
+	Done through: oversampled_region
+
+
+[] Possible improved error reporting
+	[] When negative pixel values are encountered during vetting of input data image,
+	mention possibility of missing sky parameter
+
+
+[..] Spline-interpolation image function
+	Current preliminary code: function_objects_1d/func1d_spline.cpp/h
+	-- radial SB profile (usually exponential, Sersic, etc.) is spline interpolation
+	using a small set of r, I values. The I values are free parameters of the fit;
+	possibly the r values could be also.
+	-- function has the usual PA, ellipticity parameters to define r_scaled;
+	optionally c_0 as well for boxy/disky isophotes
+	-- possible way to handle changing radii for interpolation points:
+	when parameter vector is passed to image function in Setup(),
+	*sort* the parameters by radius, then do interpolation with the sorted
+	vector of r,I
+	
+	-- Use optional parameter to set maximum number of possible interpolation
+	points?
+		-- would require changing modifying SetExtraParams to set up
+		parameter names vector properly, reset nParams; maybe also modifiy
+		GetParameterNames?
+
+
+[] Modify handling of oversampled PSF to catch case where user wants entire
+image oversampled
+	-- e.g., if total number of pixels in main + oversampled region (model images,
+	including edge-padding for PSF) > number of pixels in hypothetical oversampling
+	of entire image ==> switch to oversampling of entire image
+
+	-- need to test this to make sure time spent isn't wrongly estimated (e.g.,
+	actual time with oversampling includes FFT + downsampling)
+	
+	-- add option for user to specify this directly?
+	e.g. "--overpsf_region all"
+
+
+[X] Combine code for generating output header 
+	Currently: lines 329--335 and also 369--375 of print_results.cpp
+	-- generate in main() as list of strings?
+	-- would allow us to remove "string& programName, int argc, char *argv[]" from
+	interface of SaveParams() and SaveParams2()
+
+
+[..] Reorganize directory structure:
+	[x]src/core
+	[x]src/solvers
+	[x]src/function_objects
+	src/function_objects_extra -- for specialized, non-public stuff (n4762 funcs, experimental stuff, etc.)
+	[x]src/function_objects_1d
+	[x]src/profilefit -- for all the 1D stuff (except func1d_*)
+	src/utilities ?
+	src/extra ? -- for timing_main.cpp
+	src/model_object ? -- for model_object convolver oversampled_region downsample
+		[but note that Convolver is used by psfconvolve_main.cpp
+	[x]tests/ -- regression tests, etc.
+	[x]unit_tests/
+	[x]docs/ -- where Doxygen input files go
+		html -- created by Doxygen
+		latex -- created by Doxygen
+	
+	[] Possibly create SConstript files for subdirectories -- see 
+	http://stackoverflow.com/questions/8810418/scons-setup-for-hierarchical-source-but-single-target
+	[or maybe not, since that's getting into "recursive Makefile considered harmful"
+	territory, even if SCons isn't necessarily afflicted with the same problems]
+
+
+[] Refactor print_results.cpp to be simpler and less mangled-from-mpfit
+
+
+[] Look into possible use of FFTW++ library for convolution
+	-- C++ wrapper around FFTW, with added optimization for "implicit zero-padding"
+	of convolutions
+
+[] Optional convolution with charge-diffusion kernel?
+
+
+[] Annotations to describe function parameters
+	-- optional text strings in a FunctionObject class which provide a short, one-line
+	description/reminder of what the parameter is (and maybe its units?)
+	-- printed on same line as parameter name, with "#" in between
+	-- possibly alternate command-line flag to specify this instead of the
+	current, "bare-bones" version
+
+
+[] User annotations for functions in config file
+	-- i.e., allow user to add names to individual functions, e.g.
+	FUNCTION Sersic   # NGC 100: bulge
+	or:
+	FUNCTION Sersic   LABEL = NGC 100: bulge
+	-- these would be stored and written to output files
+
+
+[] Compiling parts of program(s) into a library, which is then linked when
+compiling imfit and makeimage (and other things, like timing). Idea is to set
+things up so it's easier for other people to use "libimfit" without the
+specific input/output functionality/limitations of imfit/makeimage.
+
+
+
+[] Ability to update ModelObject with new data/error/mask/PSF images
+	-- Mainly so we can be more flexible with Python wrapper
+	
+	ModelObject does two main things:
+		Computes a model image (w/ optional PSF convolution)
+			-- optionally computes individual-function images, etc.
+		Compares model image with data image and computes fit statistic
+
+	
+	Model specification:
+		General model:  (e.g., most of makeimage config file)
+			list of FunctionObjects
+			function-block indices
+			parameter vector
+		Image-specific details:
+			output image size/shape -- may be set by data-image size
+			[PSF image]
+			[oversampled PSF images -- including region specifications]
+	
+	Things needed for fitting an image, including statistical computations:
+		data image (nCols, nRows)
+		image characteristics: gain, readnoise, original_sky, exptime, ncombined
+		[error image]
+		[mask image]
+		
+	Possible updates user might want
+		New Data and/or Error and/or Mask image
+			New Data --> updated model image and internal weight sizes?
+					 --> new psfConvolver if PSF being used
+			New Error --> update internal weight vector
+				ModelObject::AddErrorVector is "re-entrant"
+					weightVector is freed *if* already allocated
+					weightVector then points to external error image
+			New Mask --> update internal weight vector
+				maskVector then points to external mask image (NOT allocated/dealloc. w/in ModelObject)
+			
+		New PSF (no PSF; add PSF)
+			If same size as old, we just need to update Convolver objects
+			If different size, we *also* need to change model image size
+		Switch statistical mode (chi^2 <--> MLR, data-based chi^2 <--> model-based, ...)
+			IF use-model-errors
+			
+			
+	Dependencies:
+		(Output) model image size affects:
+			nModelVals, nModelColumns, nModelRows
+			modelVector
+			oversampledRegions [via nModelColumns, nModelRows]
+		data image size affects:
+			nDataVals, nDataColumns, nDataRows
+			weightVector, extraCashTermsVector, maskVector
+			outputModelVector, deviatesVector, residualVector, standardWeightVector
+			[and, if doing fits, model image size, above!]
+		PSF image size affects:
+			psfInterpolator, psfConvolver, oversampledRegion objects
+			[and, of course, model image size, above!]
+
+
+	IMAGE VARIABLES AND OTHER ARRAYS:
+		Assume that arrays are allocated and freed by ModelObject unless stated
+		otherwise
+		
+		<> modelVector
+			allocated in ModelObject::SetupModelImage; used all over the place
+			RETURNED by ModelObject::GetModelImageVector
+			
+		<> outputModelVector -- modelVectorAllocated is set
+			allocated in ModelObject::GetSingleFunctionImage and in
+			ModelObject::GetModelImageVector *if* convolution is done
+			RETURNED by ModelObject::GetModelImageVector
+			RETURNED by ModelObject::GetModelImageVector (which fills it
+			with different data every time that method is called)
+		
+		<> localPsfPixels -- localPsfPixels_allocated is set
+			allocated in ModelObject::AddPSFVector (copied from input pointer)
+			immediately passed to: psfInterpolator = new PsfInterpolator_bicubic(localPsfPixels, nPSFColumns, nPSFRows)
+			not used elsewhere
+		
+		<> dataVector [external]
+			NOT allocated OR freed by ModelObject
+			pointer passed in via ModelObject::AddImageDataVector
+		
+		<> weightVector
+			This has *two* modes:
+			1. Internally generated (& freed) -- weightVectorAllocated is set
+			
+			2. Externally supplied (via --noise or --weight)
+			In ModelObject::AddErrorVector, weightVector is assigned to point
+			to the input error-image vector --> NOT freed by ModelObject
+	
+		<> standardWeightVector -- standardWeightVectorAllocated is set
+			allocated in ModelObject::GetWeightImageVector, not used elsewhere
+			RETURNED by ModelObject::GetWeightImageVector
+			
+		<> maskVector
+			This has *two* modes
+			1. Internally generated (& freed) -- maskVectorAllocated is set
+			In ModelObject::FinalSetupForFitting
+			
+			2. Externally supplied (via --mask)
+			In ModelObject::AddMaskVector, maskVector is assigned to point
+			to the input mask-image vector --> NOT freed by ModelObject
+			
+		<> residualVector -- residualVectorAllocated is set
+			allocated in ModelObject::GetResidualImageVector
+			RETURNED by ModelObject::GetResidualImageVector
+			
+		<> deviatesVector -- deviatesVectorAllocated is set
+			allocated in ModelObject::ChiSquared
+			not used elsewhere (though it is passed to mp_enorm)
+		
+		extraCashTermsVector
+		
+		fblockStartFlags
+		bootstrapIndices
+		
+			maskVectorAllocated
+			standardWeightVectorAllocated
+			residualVectorAllocated
+			outputModelVectorAllocated
+			deviatesVectorAllocated
+			extraCashTermsVectorAllocated
+			localPsfPixels_allocated
+			fblockStartFlags_allocated
+			
+		PROBLEM: ModelObject::GetModelImageVector returns a ponter to either
+			modelVector or (if PSF convolution was done) outputModelVector.
+			Currently, imfit_main and makeimage_main merely pass these pointers
+			to SaveVectorAsImage and do nothing else, so neither is freed
+			outside of ModelObject.
+				modelVector is freed when ModelObject is destroyed
+					-- this will be bad for Python wrapper if user wants to
+					actually keep the model image (e.g, in numpy form)!
+					-- OK, Andre's code (ModelObjectWrapper.getModelImage,
+					used by me in imfit_lib.pyx) copies the data to an empty numpy array
+
+				outputModelVector is freed when ModelObject is destroyed
+		
+		
+	
+  dataVector = modelVector = weightVector = standardWeightVector = NULL;
+  residualVector = maskVector = deviatesVector = NULL;
+  outputModelVector = extraCashTermsVector = NULL;
+  bootstrapIndices = NULL;
+  fblockStartFlags = NULL;
+
+  localPsfPixels = nullptr;
+  psfInterpolator = nullptr;
+  psfInterpolator_allocated = false;
+
+
+
+	ModelObject modifications:
+		Add PSF:
+			If pre-existing PSF and Convolver:
+				deallocate PSF and Convolver
+			If model-image size previously set:
+				trigger image-resizing/re-allocation
+		
+
+	Same problem as for ModelObject: how to handle variable order of
+	supplying data images/model-image spec and PSF?
+		-- internal flags
+			data/model image size specified?
+			PSF size specified?
+		
+		ModelObject::FinalSetupForFitting
+			Create a default all-pixels-valid mask if no mask already exists
+			Identify currently unmasked data pixels which have non-finite values and 
+  				add those pixels to the mask
+  			Generate weight vector from data-based Gaussian errors, if using chi^2 + data errors
+  				and no external error map was supplied
+			Generate extra terms vector from data for modified Cash statistic, if using latter
+			If an external error map was supplied, identify currently unmasked *error* pixels 
+				which have non-finite values and add those pixels to the mask
+			Apply mask to weight vector (i.e., set weight -> 0 for masked pixels)
+			VetDataVector() [look for non-masked bad data values]
+			Final check that nValidDataVals >= 1
+
+
+	Python equivalents to SetupModelObject?
+		object.SetupForFitting( dataImage, maskImage, errorImage, psfImage, ... )
+		[or "AddDataForFitting?"]
+		
+		.SetPSF( psfImage )
+			-- adds new PSF image (may be first, or replacement for previous)
+			
+		.SetupForModelImage(nCols, nRows, psfImage, ...)
+
+		.ComputeModelImage( usePSF=True/False )
+			-- i.e., might be convenient to allow use to easily turn on/off
+			PSF convolution for testing/comparison purposes
+				
+		.SetFitStatistic( ... )
+			-- specifies which fitting statistic to compute
+			-- may trigger GenerateExtraCashTerms(); allocation/deallocation
+			of extraCashTermsVector
+
+
+
+
+** BUGS FIXED
+
+[.] PointSource component is not generated correctly in oversampled regions
+	-- xx July 20189 email from Iskren Georgiev
+	-- Problem was that oversampling from -X to +X is handled by calling
+	functions' GetValue() methods with (e.g.) x0 = -X to +X in 1/oversamplingScale increments
+	(e.g., -10.0, -9.8, -9.6, ...). This is correct for all functions *except*
+	PointSource, where -- in the case of an oversampled PSF -- we really should
+	be calling its GetValue() methods from -(oversamplingScale*X) in one-pixel
+	increments (because overampled PSF is sampled at finer scale0>
+	
+	[x] Fixed by adding internal oversamplingScale data member to PointSource;
+	inside GetValue(), the x_diff and y_diff values are now computed by
+	multiplying (x - x0) and (y - y0) by oversamplingScale. Also added
+	SetOversamplingScale method to change internal oversamplingScale value.
+	-- OversampledRegion::ComputeRegionAndDownsample calls SetOversamplingScale
+	method of PointSource object to ensure correct oversamplingScale is being
+	used.
+	
+	[x] Added check with simple oversampled-region + PointSource to do_makeimage_tests
+	
+	
+	
+[X] X0,Y0 coordinates in *printed* bootstrap output are *not* corrected for image sections
+	-- 17 April 2019 email from Chris Pritchet
+	-- see "Bootstrap and MCMC output" in "Bugs Fixed" section below for how I fixed this in MCMC
+	-- bootstrap results saved to (optional) output file *is* correct
+	
+	-- BootstrapErrors() has the code that prints summary statistics to screen;
+	BootstrapErrorsBase() has the (correct!) code for writing results to file
+	by calling theModel->PrintModelParamsHorizontalString(paramsVect)
+	
+	[x] Update BootstrapErrors() to use a modified (corrected) copy of bestfitParams
+	[input] with image offsets applied.
+	
+	[x] Add checking of bootstrap output to do_imfit_tests
+	
+
+
+[X] MCMC restarts with --append turn fixed parameters into free?
+
+	Iskren Georgiev reports that restarting an MCMC run with --append
+	seems to have set fixed X0,Y0 into free.
+	
+	[ ] Set up trial run with --append and fixed parameter(s)
+
+  ./imfit-mcmc tests/faintstar.fits -c tests/imfit-mcmc_reference/config_imfit_faintstar.dat --no-subsampling --seed=1 -o temptest/mcmc_test_short --append &> temptest/test_dump_mcmc1c
+  
+  Use existing config_imfit_faintstar_fixed.dat
+
+  ./imfit-mcmc tests/faintstar.fits -c config_imfit_faintstar_fixed.dat --no-subsampling --seed=1 -o temptest/mcmc_test_short --max-chain-length=10000
+
+  ./imfit-mcmc tests/faintstar.fits -c config_imfit_faintstar_fixed.dat --no-subsampling --seed=1 -o temptest/mcmc_test_short --append  --max-chain-length=15000
+
+	Can't reproduce this -- everything behaves the way it should...
+	
+	CONCLUSION: No bug present.
+
+
+[X] Add oversampling to computation of single-function images
+	This was a long-standing bug I noticed when inspecting the code for other reasons;
+	basically, the oversampling stage of image computation was not being done when
+	single-function images were being computed
+	[X] Create or copy oversampled test image (single-function) for reference
+	[X] Test output using makeimage:
+		compare main output model image with single-function image: should
+		be different (bcs we haven't fixed anything yet!)
+	[X] Modify ModelObject::GetSingleFunctionImage to include oversampling
+	[X] Run unit tests
+	[X] Compile makeimage and run regression tests
+	[X] Test output using makeimage:
+		compare main output model image with single-function image: should
+		be identical
+	[X] Add test to do_makeimage_tests
+		[X] modify very first oversampling test so it also spits out single-function image
+		./makeimage tests/makeimage_reference/config_makeimage_gauss-oversample.dat -o temptest/oversampled.fits --psf tests/psf_standard.fits --overpsf tests/psf_oversamp.fits --overpsf_scale 3 --overpsf_region 100:110,100:110 --output-functions=temptest/oversampled_single
+		[X] Add test comparing reference image with single-function image
+		./python/compare_fits_files.py --min-value=1.0e-7 temptest/oversampled_single_Gaussian.fits tests/${osname}/oversampled_orig.fits
+	[X] Add test using two-function config file to do_makeimage_tests
+		-- e.g., use ./python/compare_fits_files.py --compare-sum to make sure individual
+		single-function images sum to match main output
+
+
+(1.5)[x] Bootstrap and MCMC output:
+	X0,Y0 values are *not* corrected to full-image coordinates if input image used
+	image subsections (e.g., for "imfit data.fits[200:400,100:300] ...", the saved
+	X0,Y0 values in the bootstrap output file will be subsection-relative, although
+	the "best-fit" values in the header will be correctly full-image relative.
+	 -- BootstrapErrors() --> BootstrapErrorsBase()
+	 -- ModelObject::PrintModelParams -- corrections are applied *if* parameterInfo
+	 input parameter is non-NULL
+	 -- Need to write "horizontal" version of ModelObject::PrintModelParams
+	 	-- skips printing parameter names, but does apply x,y offsets
+	 
+	 FIXED: Rewriting of printout methods to be more consistent; storing parameter-limits
+	 info (including X0,Y0 offset values) inside ModelObject instead of trying to
+	 pass them around to the PrintModelParams functions.
+	 
+		[x] Locate where in code we currently *do* correct for this
+		[x] Write unit test for new PrintModelParams function
+		[x] Write code to pass test
+	[x] Implement fix in bootstrap code
+	[x] Implement fix in MCMC code
+
+	[x] Add setting and storage of mp_param-type info *inside* ModelObject
+		-- idea is to circumvent the awkward, error-prone issue of how to pass through
+		mp_param pointer-to-array (or vector of mp_par) to ModelObject printing methods
+		-- could be simplified version of mp_par, maybe even just holding X0_offset,
+		Y0_offset
+			-- mp_par data members actually referenced within model_object.cpp:
+			PrintModelParams: .offset
+				print_results.cpp
+			PrintModelParamsToStrings: .offset, .fixed, .limits [+ .size() for vector<mp_par>]
+				mcmc_main.cpp
+			PrintModelParamsHorizontalString: .offset
+				bootstrap_errors.cpp
+		[x] Add vector<SimpleParameterInfo> to ModelObject
+		[x] Add printing method to ModelObject which uses internal vector
+		[x] Test substitution of new printing method in unit tests
+			[x] testPrintParamsToString
+			[x] PrintModelParamsHorizontalString -- testPrintModelParamsHorizontalString_noOffset
+			[x] PrintModelParamsHorizontalString -- testPrintModelParamsHorizontalString_withOffset
+			[x] PrintModelParamsHorizontalString -- testPrintModelParamsHorizontalString_withOffset_2blocks
+
+	[x] Convert code in print_results.cpp which uses PrintModelParams to use
+		PrintModelParamsToStrings instead, and then eliminate PrintModelParams ?
+
+	[x] Update ModelOject1D Print*Params methods
+		[x] Update adding parameter info to ModelObject1D in profilefit_main.cpp
+		[x] Update other parameter-printing code in profilefit
+
+
+
+[X] PSF oversampling:
+	Small deviations in output image were present when generated using current working
+	version of makeimage (pre-1.5) with internal OversampledRegion vector vs when generated with
+	v1.4 of makeimage. (Also present when generated using makemultimages.)
+	
+	FIXED: Problem was that oversampling was *not being done*, because the ModelObject
+	instance wasn't getting told in SetupModelObject() about the oversamplng, because we 
+	weren't setting the correct variables in the MakeimageOptions object in main 
+	(i.e., psfOversamplingScale and oversampleRegionSet [which are in base class] --
+	note that the former is distinct from the vector version psfOversamplingScales).
+	Fixed by explicitly setting options->oversampleRegionSet and
+	options->psfOversamplingScale before calling SetupModelObject().
+	
+	
+
+[X] Convolution of an image with substantial region of negative pixels produces
+weird ringing and positive pixels in negative region.
+	Reported by Semyeong Oh
+	-- tests using astropy.convolution.convolve() and astropy.convolution.convolve_fft()
+	show apparently correct results
+	-- see if this also happens with 1-D convolution?
+	?? Is output the absolute value of what it should be?
+		-- compare with astropy.convolution output
+			[]1. Compare astropy.convolution output on all-positive image (how much
+			does our convolution differ from theirs?)
+			[]2. Compare astropy.convolution output on partially-negative image
+	-- This turns out to have been a longstanding bug due to the fact that I had
+	(for some mysterious reason) taken the absolute value of the inverse transform
+	at the end of the convolution. This had no effect when all pixels were >= 0,
+	but was wrong for negative pixels... Accidentally fixed in version 1.3 when
+	I changed how the transform was computed.
+
+
+[X] --quiet option with Nelder-Mead simplex (--nm) is not truly quiet (some of N-M
+simplex output is suppressed, but "iteration XXX" is still printed)
+	-- OK, this is a difference between the current version of NLopt library ints
+	dynamic form (what we normally use) and the static-linking one
+
+[X] Compiling with our SCons option --no-nlopt fails to catch references to NLopt
+function NMSimplexFit in bootstrap_errors.cpp
+	Reported by Guillermo Barro
+	-- FIX: add preprocessor directives to comment out all references to NLopt stuff
+
+[X] Doing bootstrap resampling when the input config file contains the best-fitting
+solution for the model + image results in mysteriously non-existent boostrap
+error estimates:
+E.g., [with version 1.3b; seen by Semyeong Oh in an earlier version]
+$ ./imfit tests/ic3478rss_64x64.fits --config tests/imfit_config_ic3478_64x64.dat --gain=4.725 --readnoise=4.3 --sky=130.1 --bootstrap 100
+	==> OK output
+$ ./imfit tests/ic3478rss_64x64.fits --config bestfit_parameters_imfit.dat --gain=4.725 --readnoise=4.3 --sky=130.1 --bootstrap 100
+	==> yieds:
+Best-fit		 Bootstrap      [68% conf.int., half-width]; (mean +/- standard deviation)
+X0 = 32.9439     [fixed parameter]
+Y0 = 34.0933     [fixed parameter]
+PA = 18.2613     [fixed parameter]
+ell = 0.235989     [fixed parameter]
+n = 2.40028     [fixed parameter]
+I_e = 20.0094     [fixed parameter]
+r_e = 60.7611     [fixed parameter]
+
+f1 = '/Users/erwin/coding/imfit/bstest1.dat'
+df1 = du.ReadCompositeTableFromText(open(f1).readlines(),dataFrame=True, columnRow=14)
+f2 = '/Users/erwin/coding/imfit/bstest2.dat'
+df2 = du.ReadCompositeTableFromText(open(f2).readlines(),dataFrame=True, columnRow=14)
+
+astrostat.genstats(df1.X0_1)
+astrostat.genstats(df2.X0_1)
+astrostat.genstats(df1.Y0_1)
+astrostat.genstats(df2.Y0_1)
+astrostat.genstats(df1.n_1)
+astrostat.genstats(df2.n_1)
+
+OK, bootstrap output from 2nd case (starting with best-fit values) seems similar to
+first case (starting from original guesses), so *that* part works...
+
+OK, here is the problem:
+	1. In BootstrapErrors(), we check for *fixed* parameters with this:
+    if ((paramLimitsExist) && (parameterLimits[i].fixed == 0)) {
+	BUT: if the config file had no limits at all (as is always true for an output
+	best-fit parameters file), then paramLimitsExist = false
+	
+	Confirmed by removing all the limits from the regular param file
+		==> produces the same "[fixed parameter]" output...
+	
+	[X] SOLUTION: Remove parameterLimitsExist test when determining whether to
+	print conf. intervals
+
+
+
+
+** REFACTORING
+
+[X] Standardize on vector<mp_par> for parameter info/limits
+	-- currently, we use a mixture of mp_par * and vector<mp_par>; the latter is
+	preferable given that we don't have to worry about memory cleanup
+	-- need to modify solver-wrapper functions to handle this
+		-- test for empty vector<mp_par> instead of NULL
+		-- convert vector<mp_par> into suitable form
+			-- note that this conversion already happens in nlopt_fit, so this would
+			be merely a change, not an addition
+	
+	Things taking mp_par * as parameters:
+		[x]bootstrap_errors.h: BootstrapErrors; BootstrapErrorsArrayOnly
+		[x]diff_evoln_fit.h: DiffEvolnFit [not used]
+		[x]dispatch_solver.h: DispatchToSolver
+		[x]levmar_fit.h: LevMarFit
+		[-]mpfit.h: mpfit
+		[x]nlopt_fit.h: NLOptFit
+		[x]nmsimplex_fit.h: NMSimplexFit
+		[x]model_object.h: ModelObject->AddParameterInfo
+			note that this has two versions, one for mp_par * and the other for vector<mp_par>
+		
+	[x] Figure out how to handle mp_par * = NULL cases
+		-- in most or all of the solver-wrapper algorithms (NMSimplexFit, etc.),
+		we test to see if parameterLimits == NULL to see if there are *any* parameter
+		limits.
+		-- OK, imfit_main *always* allocates memory for mp_par *parameterInfo, so
+		all the parameterLimits == NULL tests will *always* fail!
+		
+		
+	[x] Switch mp_par * to vector<mp_par> in solvers
+		[x] Switch use in dispatch_solver.h: DispatchToSolver
+		[x] Switch use in calls to DispatchToSolver in imfit_main.cpp: main
+			-- paramLimits = vector<mp_par>
+			-- parameterInfo = mp_par *
+		[x] Switch use in diff_evoln_fit.h: DiffEvolnFit
+		[x] Switch use in nmsimplex_fit.h: NMSimplexFit
+		[x] Switch use in nlopt_fit.h: NLOptFit
+		[x] Switch use in levmar_fit.h: LevMarFit
+			[x] Investigate how mpfit() requires mp_par structures
+			[x] Add generation of mp_par * data structure
+		[-] Switch use in mpfit.h: mpfit
+			-- mpfit() uses mp_par *pars
+		[x] Switch use in calls to DispatchSolver in main
+		[x] Switch mp_par * to vector<mp_par> in bootstrap_errors.h: BootstrapErrors; BootstrapErrorsArrayOnly
+		[x] Switch mp_par * to vector<mp_par> in bootstrap_errors.cpp: BootstrapErrors; BootstrapErrorsArrayOnly
+			line 50: NMSimplexFit()
+			line 74: LevMarFit()
+			
+		[x] TEST: Compile and run regression tests
+
+
+	[x] Switch mp_par * to vector<mp_par> in call to ModelObject::AddParameterInfo() in main()
+		[x] Investigate use of parameterInfo in model_object [AddParameterInfo method]
+		[x] Investigate whether X0_offset/Y0_offset info is *needed* in parameterInfo
+			-- updating of .limits *is* necessary
+			-- updating of .offset is not necessary, but maybe we should keep it for
+			consistency
+		[x] Add X0_offset and Y0_offset info to paramLimits
+		[x] Change "theModel->AddParameterInfo(parameterInfo);" to
+				"theModel->AddParameterInfo(paramLimits);"
+		[x] TEST!
+		[x] move nFreeParams-- updating code from loop that populations parameterInfo
+			to loop which add X0_offset/Y0_offset info to paramLimits
+		[x] TEST!
+		
+		
+	[x] Update tests to account for now-missing "Setting up parameter information array" line in output
+		[x] Make list of reference output files with that line
+		[x] Write shell script to do mass copying of test_dump files to reference files
+
+
+	[x] Comment out use of parameterInfo in main()
+		[x] Comment out use of parameterInfo
+		[x] TEST!
+
+	[x] Rename paramLimits to parameterInfo in main()
+		-- slightly more accurate name now
+		[x] Apply renaming
+		[x] TEST!
+	
+	[x] Switch mp_par * to vector<mp_par> in mcmc_main.cpp
+		[x] Locate places where mp_par * is used
+		[x] Copy in relevant replacement code from imfit_main.cpp
+		[x] TEST!
+
+
+
+
+
+
+** IMPROVEMENTS APPLIED
+
+(1.8)[X] Save --print-fluxes output to file
+	Iskren Georgiev requested ability to store output from --print-fluxes in a file.
+	He seems happy with the following idea:
+		1. Keep --print-fluxes as is;
+		2. Add --save-fluxes=<filename> option
+	-- Do we need to modify anything in ModelObject?
+	-- Probably best if we always print the fluxes to console
+	-- Adapt code in main()
+		Save output strings to vector<string>, then
+			A. Print to console
+			B. If requested, write strings (with header) to file
+	[x] Add "--print-fluxes" option to makeimage_main.cpp
+	[x] Add saveFluxesFilename data member to options_makeimage.h
+	[x] Add stub code in main() to detect save-fluxes option
+	[x] Add code to main() to save fluxes to file
+		[x] Rewrite print-fluxes code to write strings to vector<string>,
+			then print that to console
+		[x] Code to generate header with commandline-args and timestamp
+	
+	[x] Rework options processing in main() to handle possibilities of "print but don't save",
+		"save but don't print", and both
+	
+	[x] Add regression test to check that save-fluxes file is correctly generated
+		[x] Generate sample file and check it
+		[x] Add sample file to tests/makeimage_reference/
+		[x] Add regression test to do_makeimage_tests
+
+
+
+(1.7)[X] Add boolean flags to FunctionObject components to indicate total-flux computation
+should be skipped (e.g., for FlatSky component)
+	-- Add code to ModelObject::FindTotalFluxes to check FunctionObject for this
+	state and skip computing flux
+	-- Maybe add code to makeimage_main.cpp to check & skip over such functions
+	in --print-fluxes printout?
+	
+	[X] Add code to base FunctionObject [default = return false]
+		[X] Add unit test for this in unittest_funcs.t.h (class TestExponential)
+	[X] Add code to FlatSky to return true
+		[X] Add unit test for this in unittest_funcs.t.h (class TestFlatSky)
+
+
+(1.7)[X] Check input: Catch cases of PSF images with all zeros
+	-- when PSF image is normalized, this will (silently) make PSF image have all NaN values
+	-- So: sanity-check the input PSF image to make sure the sum of its pixels is > 0
+	*if* we're doing normalization (if user requested --no-normalize, then assume they
+	know what they're doing...)
+	[x] Make test in do_makeimage_tests
+	[x] Figure out where to insert check code
+	[x] Add code to catch bad PSF image
+
+
+
+(1.5)[X] Add option to turn *off* normalization of input PSFs
+	-- Corentin Schreiber requested this for working with interferometric images,
+	which use "a peculiar point spread function, with a peak of unity and sum of zero."
+	[x] Add commandline option
+		[x] Update options_base.h to include psf-normalization option
+		[x] Update ProcessInput() in makeimage_main.cpp to include option
+		[x] Update ProcessInput() in imfit_main.cpp to include option
+		[x] Update ProcessInput() in mcmc_main.cpp to include option
+		[x] Update construction of PsfOversamplingInfo objects in makeimage_main.cpp
+			-- PsfOversamplingInfo::SetNormalizationFlag
+		[x] Update construction of PsfOversamplingInfo objects in imfit_main.cpp
+		[x] Update construction of PsfOversamplingInfo objects in mcmc_main.cpp
+	[x] Update ModelObject::AddPSFVector
+		-- input PSF normalization flag
+		-- pass parameter to Convolver::SetupPSF
+	[x] Update OversampledRegion
+	[x] Update ModelObject::AddOversampledPSFVector
+		-- input PSF normalization flag
+		-- pass parameter to OversampledRegion::AddPSFVector
+	[x] Update ModelObject::AddOversampledPSFInfo
+		-- input PSF normalization flag
+		-- pass parameter to OversampledRegion::AddPSFVector
+	[x] Update Convolver
+		[x] Internal normalize flag
+		[x] Update Convolver::SetupPSF to include normalize flag as input parameter
+		[x] Update Convolver::DoFullSetup to handle normalize flag
+	[x] Update PsfOversamplingInfo
+	[x] Update SetupModelObject
+		[x] Update calls to ModelObject::AddPSFVector
+	[X] Feedback (& PSF image??) from Corentin Schrieber
+		[X] Does it work the way he wanted it to?
+		[X] Ask for PSF image so we can test non-normalized PSF?
+		
+	
+(1.5)[X] Oversampling of multiple sub-regions (possibly with their own oversampled PSFs)
+	-- multiple sub-regions, all with same PSF
+	-- multiple sub-regions, each with its own PSF
+	-- probably simpler to require that each sub-region have its own PSF; user must
+	repeatedly specify the same PSF file if they want all sub-regions to share a PSF
+	
+	[x] Code up makeimage user interface (vector of sub-region and PSF specifications in main)
+	
+	[x] PsfOversamplingInfo class
+		[x] Write code for class
+		[x] Rewrite code to make it one instance per oversampled region
+		[x] Write unit tests for class
+			[x] Create unit test file and run_unittest_xxx script
+			[x] Write some unit tests
+			[x] Rewrite tests for updated version
+			[x] Get unit tests to pass
+			[x] Add unit test to run_unit_tests.sh
+		[x] Add files to repo [class files, unit tests and script]
+		[x] New functions: Add/GetImageOffset, GetCorrectedRegionCoords
+			[x] Add unit test for AddImageOffset
+			[x] Write code to pass tests
+		
+		LATER:
+		[-] Experiment with converting pointers used for oversampled PSFs to
+		C++-11 shared_ptr. A given PSF vector is then shared among:
+			* shared_ptr in PsfOversamplingInfo instance (shared_ptrs in
+			multiple PsfOversamplingInfo instances could all point to a
+			single pixel array)
+			* shared_ptr in ModelObject::AddOversampledPsfInfo (psfPixels_osamp)
+			* shared_ptr in OversampledRegion::AddPSFVector ?
+			* shared_ptr in Convolver instance (psfPixels)
+		TRICKY POINT: shared_ptrs by default call "delete" to de-allocate the
+		memory. Memory that's been allocated via malloc/calloc instead of via "new"
+		should have a "custom deleter" that calls "free"; this can be set up
+		via
+			std::shared_ptr<T> ptr(static_cast<T*>(malloc(sizeof(T))), free);
+		See, e.g., https://stackoverflow.com/questions/12264701/shared-ptr-with-malloc-and-free
+		
+		* REASON WHY WE CAN'T DO THIS: In C++-11 (and C++-14), shared_ptr objects
+		do *not* have array access via [], and so *cannot* be used in place of
+		standard C/C++ arrays! (Weirdly, unique_ptr *does* have this ability.
+		Also, there is a C++-17 proposal to add this to shared_ptr, but that's not
+		helpful now...)
+
+	[x] Modify SetupModelObject to check for and handle multiple oversampling regions
+		[x] Basic check using 2 regions w/ 1 PSF and scale
+
+	[x] Update SetupModelObject unit tests to account for altered interface
+		[x] Update tests to handle simple case of 1 oversampled region
+		[x] Update tests to include multiple oversampled regions
+		[x] Update MCMC-mode tests to include multiple oversampled regions
+	
+	[-] Add unit tests to ?oversampled_region to catch bad nBaseColumns, nBaseRows
+		PROBLEM: In ModelObject::AddOversampledPsfInfo, bad oversampled-PSF region
+		specifications (i.e., extending outside image) will generate bad deltaX, deltaY
+	
+	[x] Add use of PsfOversamplingInfo to makeimage_main.cpp
+		[x] Add initial use
+		[x] Modify to agree with updated version (post-integration into SetupModelObject)
+	
+	[x] Add regression test to do_makeimage_tests.sh to do simple test of multiple regions
+		[see planning_for_mult-oversampling_tests.txt for possible starting points]
+	
+	[x] Modify ProcessInput in makeimage to handle multiple --overpsf* instances
+		-- currently, when we specify multiple instances of e.g. --overpsf_region, only
+		the last one gets recorded in the OptionParser object
+		[x] Modify commandline_parser to handle multi-instance options
+			[x] Plan out possible interface
+			[x] Add unit tests to unittest_commandline_parser.t.h
+			[x] Write code to make tests pass
+			?[X] Consider rewriting commandline_parser to make all OptionParser objects
+			the same (with internal vector), with behavior (singleton or vector)
+			depending on how constructor is called
+		
+		[x] Update ProcessInput in makeimage to use multi-instance options
+		[x] Update ProcessInput in imfit to use multi-instance options
+		
+	[x] Code up array of sub-region convolutions in ModelObject
+		[x] New data members: nSubregions
+		[x] Start with 1-element array (i.e., have all the looping, etc., but just one sub-region)
+		[x] Add in code to set up multiple sub-regions
+
+	[x] Modify imfit_main.cpp to handle multiple oversampling regions
+		[x] Modify ProcessInput to include & handle options (as in makeimage)
+		[x] Modify main() to handle multiple regions (as in makeimage)
+		[x] Add code to pass in image offsets (X0_offset, Y0_offset) to psfOveramplingInfo objects
+	
+	[x] Modify mcmc_main.cpp to handle multiple oversampling regions
+		[x] Modify ProcessInput to include & handle options (as in imfit)
+		[x] Update ProcessInput in imfit-mcmc to use multi-instance options
+		[x] Modify main() to handle multiple regions (as in imfit)
+	
+	[x] Check that both PSF-oversampling tests in do_imfit_tests.sh work
+	
+	[X] Add regression test to do_imfit_tests.sh to do simple test of multiple regions
+		Image generated with standard 35x35 Moffat PSF, with noise added
+./makeimage config_makeimage_2gauss_small.dat --psf tests/psf_moffat_35.fits -o modelimage_psf.fits
+~/python/add_noise_to_image.py modelimage_psf.fits modelimage_psf_noisy.fits --gain=1000
+		Fit w/o PSF: ./imfit -c config_imfit_2gauss_small.dat modelimage_psf_noisy.fits
+		Fit w/ PSF:  ./imfit -c config_imfit_2gauss_small.dat modelimage_psf_noisy.fits --psf=tests/psf_moffat_35.fits
+
+		Image generated w/ 2 oversampled-PSF regions
+./makeimage config_makeimage_2gauss_small.dat -o modelimage_psf+2osamp.fits --psf tests/psf_moffat_35.fits --overpsf tests/psf_moffat_35_oversamp3.fits --overpsf_scale 3 --overpsf_region 35:45,35:45 --overpsf_region  10:20,5:15
+~/python/add_noise_to_image.py modelimage_psf+2osamp.fits modelimage_psf+2osamp_noisy.fits --gain=1000
+		Fit w/o PSF: ./imfit -c config_imfit_2gauss_small.dat modelimage_psf+2osamp_noisy.fits
+		Fit w/ PSF:  ./imfit -c config_imfit_2gauss_small.dat modelimage_psf+2osamp_noisy.fits --psf=tests/psf_moffat_35.fits
+		Fit with oversampled PSF: 
+			./imfit -c config_imfit_2gauss_small.dat modelimage_psf_noisy.fits --psf=tests/psf_moffat_35.fits --overpsf tests/psf_moffat_35_oversamp3.fits --overpsf_scale 3 --overpsf_region 35:45,35:45 --overpsf_region  10:20,5:15
+
+		[X] Make "data" image: 50x50 pix, 2 small Gaussians + background
+		[X] Make "noisy" version of data image
+		[X] Test fit using no oversampling
+		[X] Test fit using 2-region oversampling
+	
+	[x] Modify EstimateMemory (and code calling it in _main.cpp) to account for
+	multiple oversampled regions
+	
+	[x] LATER: Comment out or remove GetAllCoordsFromBracket2 from utilities, since we no longer
+	need it?
+
+
+(1.5)[X] Fix regression in lack of blank lines between function blocks in output
+	-- apparently only shows up for N-M or DE fits!
+	[X] Look for possible previous 2-fuction-block test outputs
+	[X] Fix missing blank line between function blocks in output
+	[X] Add regression test to make sure this doesn't happen again.
+	
+
+[X] Update run_unit_tests.sh to accumulate number of failures and report success/failure
+with green/red text.
+
+
+[X] Test image convolution with even-numbered-pixel arrays (e.g., 4x4 PSF image)
+	-- gauss_36x36.fits, gauss_35x35.fits
+	OK, for a 36x36 PSF image, centering the PSF at (19,19) produces an *unshifted*
+	output image, similar if not identical to convolution with the 35x35 centered PSF image.
+	(I think this is because it's effectively equivalent to a 37x37 centered PSF.)
+	Any other centering for the 36x36 PSF image, including the "true" centering at
+	(18.5,18.5) -- produces *shifted* output images.
+	[x] Generate 36x36x PSF test image
+	[x] Test on Sersic image
+
+
+[X] Consolidate PrintInputImage, PrintModelImage, etc. methods in ModelObject into a 
+single method with a string parameter ("data", "model", "weight", etc.)
+
+
+[X] Experiment with adding OpenMP to MCMC code
+	-- profiling shows that dream() spends 20-25% of time in check_outliers(), and
+	virtually all of *that* (99.6%) is in gsl_stats_mean.
+	-- preliminary tests suggest that using #pragma omp simd speeds up mean
+	calculation by ~ 15 times compared to gsl_stats_mean (and about 5x compared to
+	regular OpenMP parallel for)
+	Also, 15% of dream() time is in PrintModelParamsHorizontalString
+	
+	PROBLEM: calls to gsl_stats_mean in check_outliers() use lik, which is one of
+	cdream's odd Array2D<double> objects, which stores *all* the likelihoods and
+	requires a step size = numChains in calls to gsl_stats_mean
+		-- Need to store likelihoods in 1D double[] arrays, maybe stored in
+		vector<double[]> ? As far as I can tell, lik is (with one exception)
+		accessed in loops over numChains, using t or t - 1, so we probably
+		would not have lots of back-and-forth thrashing if we re-arranged
+		like into vector<double[]> (where vector.size = numChains, and each
+		double[] has length = maxEvals + 1
+		
+	[X] Convert lik variable in dream.cpp to vector<double *>
+		-- ~/coding/imfit-feature-simd/
+		[ ] Do conversion
+			[x] Do main conversion
+			[ ] Convert dream_restore_state() to use vector<double *>
+		[ ] Test to make sure program works
+		[ ] Test to make sure speed hasn't significantly changed
+	[X] Convert check_outliers.cpp to use "#pgrama omp simd" on computation
+	of means, instead of gsl_stats_mean
+		[ ] Test to make sure program works
+		[ ] Test to see if speed has changed
+		
+	CONCLUSION: No meaningful speedup possible; reverted to previous state of code.
+
+
+[X] Experiment with adding OpenMP to convolver.cpp
+	-- e.g., in ConvolveImage(): multiplication of complex arrays; possible
+	other array processing
+	-- use "makeimage --timing <N>" to measure things
+	-- also run PSF-convolution tests from do_makeimage_tests to make sure we
+	don't break things
+	CONCLUSION: Doesn't really make a difference
+
+
+[x] Update regression tests to use color and/or output number of failed tests
+	[x] Update regression test to accumulate & report number of failed tests
+		[x] Update do_makeimage_tests.sh
+		[x] Update do_imfit_tests.sh
+		[x] Update do_mcmc_tests.sh
+	[x] Update regression test to use color when tests fail
+		[x] Update do_makeimage_tests.sh
+		[x] Update do_imfit_tests.sh
+		[x] Update do_mcmc_tests.sh
+	[x] Update do_profilefit_tests
+
+
+[X] Separate functions for reading in images
+	[x] getimages.h/cpp: reads in mask, error, and images
+		-- for imfit, imfit-mcmc main()
+		[x] Write code
+		[x] Modify imfit main() to use function
+		[x] Modify imfit-mcmc main() to use function
+		
+	[x] function for reading in oversampled PSF images
+		-- for makeimage, imfit, imfit-mcmc main()
+		[x] Write code
+		[x] Modify imfit main() to use function
+		[x] Modify imfit-mcmc main() to use function
+
+
+[x] New function(s) to assign image data, etc. to ModelObject instance
+	SetupModelObject
+	-- i.e., something to collect all the "assign data, assign PSF, assign
+	mask, assign image-params" stuff which could be called from imfit_main.cpp
+	and also from mcmc_main.cpp [and maybe from multimfit, too]
+	-- could be called repeatedly to generate multiple ModelObject instances for
+	multimfit?
+	
+	[X] Collect program options into new classes
+		[x] base options class
+		[x] options class for makeimage
+		[x] options class for imfit
+		[x] options class for imfit-mcmc
+		
+	[x] Draft SetupModelObject
+		[x] Simple unit tests for SetupModelObject
+		[x] Unit tests for makeimage-mode; change makeimage_main.cpp
+		[x] Unit tests for imfit-mode; change imfit_main.cpp
+		[x] Unit tests for mcmc-mode; change mcmc_main.cpp
+	
+	
+
+[X] Check for NaN values in PSF (and oversampled-PSF) images; complain and quit if found
+
+[X] Test for possible memory-allocation failures
+	[x] Reading in large images -- effectively already caught by cfitsio
+	[x] Allocating memory for model images
+	[x] Allocating memory for internally-generated error image
+	[x] Allocating memory for weight image
+	[x] Allocating FFTW arrays in Convolver
+	[x] Test using makeimage and very large --nrows,--ncols ?
+
+[X] Implement Kahan summation in PSF normalization
+	Convolver::DoFullSetup
+
+[X] New class encapsulating return metadata from minimizers (like mp_results, but
+for all minimizers)
+
+[X] Update memory estimation to account for smaller FFT-related arrays
+
+[x] Update memory estimation to account for possible oversampled PSF use
+
+[X] Add one or two oversampled-PSF tests to do_imfit_tests (and do_makeimage_tests)
+	do_makeimage_tests -- ensure that we recreate reference image
+
+[X] Option to output default/simple configuration file (and then quite)
+	-- for imfit, this could include e.g. GAIN = 1 as well as single function
+	-- for makeimage, this could include NROWS and NCOLS as well as single function
+
+[X] FOR V1.3: Tweak output of best-fit parameters for mult-function-block case
+	-- currently, additional function blocks are appended directly; would be
+	nicer to have a blank line before each new "X0 ..." line
+	
+	
+[X] FOR V1.3: King model FunctionObject
+	-- function_objects/func_king.h/cpp : in progress
+	-- need to set up some profile-computation tests (e.g., compare 1-D slices
+	through output image with 1-D profiles generated by ...?)
+		[x] Write Python code to implement function; test by generating plot
+		with same ranges as Fig.10 of Peng+2010 and comparing (overlay in Illustrator?)
+		[x] Generate plot with all profiles
+		[x] Compare plot with Fig.10 of Peng+2010 in Illustrator
+	[x]-- check that we get I= 0 for r > r_t; possibly introduce shortcut in code
+	to just return 0 in that case.
+		[x] Generate images (with no subsampling) and compare profiles with
+		output of Python code
+		[x] Set up unit tests
+	[x] Add variant model where concentration (r_t/r_c) is adjustable parameter
+	[x] Add notes to documentation for Modified King function
+
+
+[x] FOR V1.3: Convert handling of user-supplied "weight" map ("--errors-are-weights")
+	so that the user can assume "weight = inverse variance" (rather than 
+	"weight = inverse simga", which is how it's actually implemented at present)
+		-- set up comparison tests
+		-- Need to modify ModelObject::GetWeightImageVector [used in imfit_main.cpp]
+		
+		[x]0. Set up unit tests
+		[x]1. Modify ModelObject::GetWeightImageVector to output 1/sigma^2 weights
+		[x]2. Modify ModelObject::AddErrorVector to convert "weight" input properly
+		[x]3. Edit imfit_howto.tex to reflect reality of weights
+		[x]4. modify do_imfit_tests to incorporate weight-map checks
+				[] Input maps produce approx. same fits as internally-generated maps
+				[] Output weight maps are approx. correct
+				[] Input an error map and output it; check
+
+
+[X] Makeimage should quit when encountering unknown command-line parameter (like imift)
+
+
+[X] Solver summary info in header of bestfit_parameters output should include
+	subtype of chi^2 (i.e., "(data-based)", "(model-based)", "(user-supplied noise map"),
+	or something like that)
+
+
+[X] Handle multi-extension FITS images
+	-- at least to the point of recognizing them and complaining clearly
+		
+	[] When reading in a FITS file (data, mask, PSF, etc.), check to see if
+	it's multi-extension
+		[X] Generate error if primary HDU is *not* a 2D image
+	
+	[] PROBLEM: how to handle user-suppled "....fits[n]" filename?
+		Need to check that image *had* at least n HDUs
+		Need to explicitly check whether HDU n is an image
+	
+	WHERE WE ARE, WHAT TO DO NEXT:
+		1. ./imfit tests/test_multiextension_hdu1empty.fits --config tests/imfit_config_ic3478_64x64b.dat
+		FAILS because, inside ReadImageAsVector, CheckImage returns 2 [we think] for
+		valid HDU number, but ReadImageAsVector only checks to see if value is > 0,
+		and then goes ahead and reads the first HDU!
+			-- ReadImageAsVector needs to check 
+			-- How should ReadImageAsVector and CheckImage handle user-specified
+			"[n]" HDU numbers?
+		2. We need to figure out how cfitsio numbers the HDUs (is the first one always
+		"[1]"? what happens if user gives "[0]"			
+			OK: the answer is: "The HDU may be specified either by
+			absolute position number, starting with 0 for the primary
+			array, or by reference to the HDU name, and optionally, the
+			version number and the HDU type of the desired extension."
+			
+			BUT: the documentation for fits_movabs_hdu says: "The first
+			routine moves to a specified absolute HDU number (starting
+			with 1 for the primary array) in the FITS file,"
+			
+			SO: User-specified "[n]" numbering is 0-based, but internal
+			numbering is 1-based!
+
+
+*[X] Check input noise map (if supplied) for NaN values and add those pixels
+to mask.
+			1. Go through error and mask image simultaneously, ID bad error pixels
+			and add to mask
+			
+			
+	[X] Set up example noise-map image with NaN values for testing
+	[X] Apply change to:
+		ModelObject::FinalSetupForFitting( )
+		[after "Identify currently unmasked data pixels which have non-finite values" step]
+	[X] Test change
+

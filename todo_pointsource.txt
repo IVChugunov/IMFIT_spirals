@@ -1,0 +1,259 @@
+
+[X] Simple program to test 2D interpolation
+	-- Read in PSF image
+	-- Test interpolation shifting by whole pixels
+	-- Test interpolation shifting by 0.5 pixels
+	-- Test interpolation shifting by fractional pixels
+	
+
+[X] Simple derivation of FunctionObject to do point-source interpolation (PointSource)
+	-- assume external code generates PsfInterpolator instance
+	-- needs extra setup function where we pass in pointer to PsfInterpolator instance
+	[X] Make stub files, modify SConstruct; test compilation
+	[X] Add generation of instance to spline2dtest_main.cpp
+	[X] Write & test code for passing in pointer to PsfInterpolator instance
+	[X] Make alternate version of MakeShiftedImage2() in spline2dtest_main.cpp
+		that uses PointSource
+	[X] Test spline2dtest using PointSource
+
+	
+[X] Add point-source function to makeimage
+	-- ModelObject::CreateModelImage
+	-- ModelObject::GetSingleFunctionImage
+	-- [X]ModelObject::FindTotalFluxes -- OK, bcs we can call TotalFlux() method
+	[X] Add PointSource to add_functions.cpp, etc.
+	[X] Add PointSource setup to ModelObject
+	[X] Add normalization of localPsfPixels in ModelObject
+	[X] Look for places within ModelObject where we have to handle PointSource
+	presence/absence
+	[X] Exclude PointSource from general, pre-convolution image construction
+		[X] Handle case where there are *no* non-PointSource functions
+		[X] Add generation of PointSource contributions, after convolution step
+	[X] Rewrite GetSingleFunctionImage to handle PointSource output
+		-- rewrite code to do loop over functions, with
+			if func.is.PointSource:
+				generate image w/o PSF convolution
+			if not func.is.PointSource
+				generate image normally, w/ PSF convolution
+
+[X] Test integration of PointSource image: does flux add up?
+
+[X] Test imfit
+	[X] Test compilation and standard tests
+	[X] Test fitting with PointSource
+
+$ ./imfit pointsource_test_200x200.fits -c config_imfit_pointsource.dat --psf=tests/psf_moffat_35.fits
+  CHI-SQUARE = 40535.202040    (39997 DOF)
+  INITIAL CHI^2 = 130759.860769
+        NPAR = 3
+       NFREE = 3
+     NPEGGED = 0
+     NITER = 7
+      NFEV = 25
+
+Reduced Chi^2 = 1.013456
+AIC = 40541.202640, BIC = 40566.991944
+
+X0		120.4926 # +/- 0.0041
+Y0		120.1928 # +/- 0.0041
+FUNCTION PointSource
+I_tot		 100319 # +/- 326.27
+
+time = 0.331s
+
+$ ./imfit pointsource_test_200x200.fits -c config_imfit_fixedgauss.dat --psf=tests/psf_moffat_35.fits
+  CHI-SQUARE = 41947.858460    (39997 DOF)
+  INITIAL CHI^2 = 134104.030538
+        NPAR = 6
+       NFREE = 3
+     NPEGGED = 0
+     NITER = 21
+      NFEV = 84
+
+Reduced Chi^2 = 1.048775
+AIC = 41953.859060, BIC = 41979.648364
+
+X0		120.4981 # +/- 0.0011
+Y0		120.4066 # +/- 0.0016
+FUNCTION Gaussian
+PA		      0 # +/- 0
+ell		      0 # +/- 0
+I_0		1.587e+06 # +/- 5201.2
+sigma		    0.1 # +/- 0
+
+time = 1.1s
+
+
+[ ] Test imfit-mcmc
+
+
+Let ModelObject handle supplying PSF images to PointSource functions?
+	-- ModelObject generates psfInterpolator object, passes pointer to that
+	into individual PointSource functions
+
+
+Alternate interpolation
+	-- Lanczos looks simple enough to implement directly
+	-- Make PointSource have an optional parameter which specifies e.g.
+	bicubic vs Lanczos2 vs Lanczos3?
+	-- Lanczos3 seems to be more popular than Lanczos2?
+	-- zero-pad PointSource copy of PSF if we're using Lanczos
+		[X] Look for Python code implementing Lanczos interpolation (e.g., for
+		checking our code against "proper" output)
+		[X] Write Python code to implement 1D Lanczos interpolation
+		[X] Write Python code to implement 2D Lanczos interpolation
+			[X] Investigate issue of normalization of Lanczos kernel
+			
+	PROBLEM: Currently, the bicubic interpolation is hard-coded into
+	model_object.cpp and oversampled_region.cpp, which instantiate
+	PsfInterpolator_bicubic objects and then pass these to the FunctionObject
+	instances when the latter are PointSource objects.
+		ModelObject::SetupPsfInterpolation
+		OversampledRegion::AddPSFVector
+	(this saves a tiny amount of memory in that we don't need multiple
+	copies of the PsfInterpolator objects)
+	
+	In ModelObject::AddFunction( FunctionObject *newFunctionObj_ptr )
+  // handle optional case of PointSource function
+  if (newFunctionObj_ptr->IsPointSource()) {
+    if (! psfInterpolator_allocated) {
+      // START NEW
+      string interpolationType = newFunctionObj_ptr->InterpolationType()
+      result = SetupPsfInterpolation(interpolationType);
+      // END NEW
+      if (result < 0)
+      	return -1;
+    }
+    newFunctionObj_ptr->AddPsfInterpolator(psfInterpolator);
+    pointSourcesPresent = true;
+  }
+  
+  [ ] Modify ModelObject::SetupPsfInterpolation to take string input
+  specifying interpolation type (default = "bicubic-spline")
+  	[ ] Check if input is valid (length > 0, has one of allowed values);
+  	return error if not
+  
+  [X] Add InterpolationType method to FunctionObject
+  	[X] Add stub method (returns "") to FunctionObject
+  	[X] Add overridden method to PointSource
+  
+  [ ] Add in Lanczsos2 interpolator
+  	[X] Write PsfInterpolator subclass to do Lanczos2 interpolation
+  	[X] Write unit tests for PsfInterpolator class
+
+
+	POSSIBLE SOLUTION: Give PointSource a method that tells caller what type
+	of interpolation has been requested? Then caller (e.g. ModelObject) knows
+	what class of PsfInterpolator to instantiate and pass to PointSource
+			
+
+
+Future options:
+	[] How to handle PSF oversampling regions?
+		-- want to make sure we don't accidentally overwrite a PointSource
+		with an oversampled region
+		-- [-]PointSource with two PSF images?
+			Optional boolean-setting method for FunctionObject: doing oversampled
+			region
+			-- Ensure internal flag is reset to false when Setup() is called;
+			new method should be called *after* Setup if we're doing oversampling
+			-- Problem: each oversampling region has its own (possibly unique) oversampled
+			PSF, so this is *not* a good idea
+		
+		-- Conceptually, a PointSource is an image function like any other (e.g. Sersic),
+		so the user shouldn't have to specify anything unusual (*except* the actual
+		oversampled PSF images, which apply to regions)
+		
+		-- Note that we could in principle have multiple PointSource objects within
+		the same oversampled-PSF region
+		
+		-- Currently, ModelObject::AddFunction passes in a pointer to the main 
+		localPsfPixels array to each new PointSource object (using their AddPsfData method).
+			-- So we need a way to pass in an oversampled PSF vector and tell a
+			PointSource object to interpolate using that instead of the main PSF
+		
+		-- How do we handle point sources with centers outside oversampling region
+		but wings extending in to it? (We can still use low-res PointSource objects,
+		since it will just involve finer sampling with the interpolator)
+		
+		Each oversampling region gets its own oversampled PSF (and scale). The
+		question is: how do we tell a given PointSource instance which oversampled
+		PSF to use?
+		
+		-- Very general possibility: PointSource can accept pointer to psfInterpolator
+		object via special method (after Setup is called), so each OversampledRegion
+		object can keep its own psfInterpolator object and pass it to the PointSource
+		image function
+			-- PointSource::AddPsfInterpolator
+			-- Do this in ModelObject, too
+			-- This is in several ways simpler and more efficient
+				-- one (correct) interpolator for each oversampled region
+				-- no need to delete old interpolator and create new one each time
+				we call xxx from within ModelObject
+			-- Awkward: how do we allow different interpolators (e.g., GSL bicubic
+			vs Lanczos)?
+				-- Modify things to make a command-line option specifying the
+				interpolation mode? (Applied to all PointSource objects)
+					-- default is bicubic; later we can add things like
+					"--point-source-interpolation=lanczos3"
+			
+			-- BUT: how do we take care of overall I_tot scaling?
+			OK: psfInterpolator object should carry its own total-counts factor
+		
+		[X] Modify ModelImage to hold internal PsfInterpolator object
+			-- this will do interpolation for the main/global PSF
+			[X] Add PsfInterpolator data member (& allocation flag)
+			[X] Add initialization to constructor
+			[X] Add deallocation to destructor
+			[X] Run unit & regression tests!
+			[X] Modify ModelObject::AddFunction to remove code passing PSF pixel
+			data to PointSource function objects and replace it with code passing in
+			pointer to PsfInterpolator data member (via PointSource::AddPsfInterpolator)
+			[X] Modify ModelObject::CreateModelImage to add passing-in of PsfInterpolator
+			pointer to PointSource objects *if* oversampled regions exist (because if
+			they do, we'll be re-assigning the PointSource internal pointer within
+			the oversampling)
+			[X] Modify PsfInterpolator_bicubic to catch case of PSFs with x_size or y_size
+				< 4 (minimum size for GSL bicubic interplation)
+			[X] Add test to unit tests to catch the above
+			[X] Run unit tests!
+			[X] Modify ModelObject::GetSingleFunctionImage as for CreateModelImage
+				-- need to put this in after PSF convolution!
+			[X] Run unit & regression tests!
+
+		[X] Modify OversampledRegion to hold internal PsfInterpolator object
+			[X] Add PsfInterpolator data member (& allocation flag)
+			[X] Add initialization to constructor
+			[X] Add deallocation to destructor
+			[X] Run unit & regression tests!
+			[X] Modify OversampledRegion::AddPSFVector to create PsfInterpolator object
+			[X] Modify OversampledRegion::ComputeRegionAndDownsample to assign
+				PsfInterpolator object to PointSource function objects (if they exist)
+			[X] Modify OversampledRegion::ComputeRegionAndDownsample to handle
+				PointSource computations after regular image computation & PSF convolution
+			[X] Run regression tests!
+
+			
+		[ ] Make simple config file & reference image for testing
+			-- One PointSource object in an oversampled region
+			[ ] Make sample config file with one PointSource instance, located
+			in what will be the oversampled region
+			[ ] Make reference image
+				[ ] make oversampled image with point source
+				[ ] downsample 2nd image to same resolution as base image
+			-- Two PointSource objects, one in an oversampled region
+			[ ] Make sample config file with two PointSource instances, one located
+			in what will be the oversampled region
+			[ ] Make reference image
+				[ ] make base image with (non-oversampled) point source
+				[ ] make oversampled image with point source
+				[ ] downsample 2nd image to same resolution as base image, then
+				add to base image
+	
+	
+	
+	[X] How does this interact with weird radio-interferometric PSFs (cf. Corentin
+	Schreiber)? How do we scale those?
+		-- OK, Corentin says that as long as we don't try to normalize the PSF image,
+		the central peak flux can be interpreted as the total flux.
+	

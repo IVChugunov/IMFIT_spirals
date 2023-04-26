@@ -1,0 +1,65 @@
+	Image file = tests/pgc35772_continuum.fits[340:630,300:580]
+	* Using Poisson maximum-likelihood-ratio statistic instead of chi^2 for minimization!
+	configuration file = tests/imfit_reference/config_imfit_pgc35772.dat
+	mask image = tests/pgc35772_mask.fits[340:630,300:580]
+Value from config file: nCombined = 3
+Value from config file: gain = 2.000000 e-/ADU
+Value from config file: read noise = 4.500000 e-
+Value from config file: original sky = 18.200000
+Reading data image ("tests/pgc35772_continuum.fits[340:630,300:580]") ...
+naxis1 [# pixels/row] = 291, naxis2 [# pixels/col] = 281; nPixels_tot = 81771
+Reading mask image ("tests/pgc35772_mask.fits[340:630,300:580]") ...
+* No PSF image supplied -- no image convolution will be done!
+ModelObject::AddMaskVector -- treating zero-valued pixels as good ...
+Function: Sersic
+7 total parameters
+Model Object: 81771 data values (pixels)
+ModelObject: mask vector applied to weight vector. (79460 valid pixels remain)
+7 free parameters (79453 degrees of freedom)
+Estimated memory use: 9812520 bytes (9.4 MB)
+
+Performing fit by minimizing Poisson MLR statistic:
+Calling Levenberg-Marquardt solver ...
+	mpfit iteration 1: fit statistic = 140540.849158
+	mpfit iteration 2: fit statistic = 120605.130293
+	mpfit iteration 3: fit statistic = 92679.173468
+	mpfit iteration 4: fit statistic = 56574.244657
+	mpfit iteration 5: fit statistic = 33178.709685
+	mpfit iteration 6: fit statistic = 28281.546933
+	mpfit iteration 7: fit statistic = 21005.426203
+	mpfit iteration 8: fit statistic = 20368.957556
+	mpfit iteration 9: fit statistic = 19296.089949
+	mpfit iteration 10: fit statistic = 18733.083476
+	mpfit iteration 11: fit statistic = 18188.102573
+	mpfit iteration 12: fit statistic = 18110.828380
+	mpfit iteration 13: fit statistic = 18109.686238
+	mpfit iteration 14: fit statistic = 18109.662156
+	mpfit iteration 15: fit statistic = 18109.660682
+	mpfit iteration 16: fit statistic = 18109.660586
+
+*** mpfit status = 1 -- SUCCESS: Convergence in fit-statistic value.
+  POISSON-MLR STATISTIC = 18109.660586    (79453 DOF)
+  INITIAL POISSON-MLR STATISTIC = 160305.717849
+        NPAR = 7
+       NFREE = 7
+     NPEGGED = 0
+     NITER = 17
+      NFEV = 132
+
+Reduced Chi^2 equivalent = 0.227929
+AIC = 18123.661996, BIC = 18188.641650
+
+X0		492.0205 # +/- 0.0626
+Y0		444.3322 # +/- 0.0641
+FUNCTION Sersic
+PA		138.318 # +/- 0.48686
+ell		0.250331 # +/- 0.0037354
+n		1.03804 # +/- 0.0080377
+I_e		7.83609 # +/- 0.063712
+r_e		34.9043 # +/- 0.17422
+
+Saving best-fit parameters in file "bestfit_parameters_imfit.dat"
+
+(Elapsed time: 2.524612 sec for fit, 2.662832 sec total)
+Done!
+

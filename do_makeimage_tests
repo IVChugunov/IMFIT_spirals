@@ -1,0 +1,399 @@
+#!/bin/bash
+#
+# Regression tests for makeimage
+
+# Predefine some ANSI color escape codes
+RED='\033[0;31m'
+GREEN='\033[0;0;32m'
+NC='\033[0m' # No Color
+
+# create an integer variable for status (& counting number of failed tests)
+declare -i STATUS=0
+
+
+FAILED_TEXT=" ** Test failed. **"
+
+do_fits_tests=$(./python/py_startup_test.py)
+if [[ $do_fits_tests == "0" ]]
+then
+  echo -n "Unable to load numpy and/or pyfits Python modules"
+  echo
+  echo -n "Tests will skip comparison of FITS files"
+fi
+
+
+if [ ! -f ./makeimage ]
+  then
+    echo "*** Unable to find local copy of makeimage! ***"
+    echo
+    exit 2
+fi
+
+# case "$OSTYPE" in
+#   darwin*)  osname="osx" ;; 
+#   linux*)   osname="linux" ;;
+#   *)        echo "unknown: $OSTYPE" ;;
+# esac
+
+# create output directory for test_dump*, etc. files (will do nothing if
+# directory already exists)
+mkdir -p temptest
+
+
+echo ""
+echo "Running tests for makeimage..."
+# do we correctly print list of available functions?
+./makeimage --list-functions > temptest/test_dump0
+# simple tests using small images
+./makeimage tests/makeimage_reference/config_biggertest_4c.dat -o temptest/biggertest.fits --ncols 64 --nrows 64 > temptest/test_dump1
+./makeimage tests/makeimage_reference/config_makeimage_gensersic512.dat -o temptest/gensersictest.fits > temptest/test_dump2
+# test two functions and also --output-functions mode
+./makeimage tests/makeimage_reference/config_makeimage_sersic+exp512.dat -o temptest/sersic+exp.fits --output-functions temptest/singleImage > temptest/test_dump3
+# same, but now testing --refimage [we assume that tests/gensersictest_orig.fits is 512x512]
+./makeimage tests/makeimage_reference/config_makeimage_sersic+exp512_nosize.dat -o temptest/sersic+exp_b.fits --refimage tests/gensersictest_orig.fits > temptest/test_dump3b
+# test using PSF convolution:
+./makeimage tests/makeimage_reference/config_makeimage_gensersic512.dat -o temptest/gensersictest_conv.fits --psf tests/psf_moffat_35_n4699z.fits > temptest/test_dump4
+
+# test doing --print-fluxes:
+./makeimage tests/makeimage_reference/config_makeimage_sersic+exp512.dat --print-fluxes --nosave > temptest/test_dump5
+# test doing --print-fluxes with a FlatSky component:
+./makeimage tests/makeimage_reference/config_makeimage_sersic+exp512b.dat --print-fluxes --nosave > temptest/test_dump5b
+# test doing --save-fluxes:
+./makeimage tests/makeimage_reference/config_makeimage_sersic+exp512b.dat --save-fluxes=temptest/savefluxes_out.dat --nosave  > temptest/test_dump_null
+
+# tests of --output-functions with PSF convolution:
+./makeimage tests/makeimage_reference/config_makeimage_sersic+exp512.dat -o temptest/sersic+exp_conv.fits --output-functions temptest/singleImage_conv --psf tests/psf_moffat_35_n4699z.fits > temptest/test_dump_null
+
+# tests of PSF oversampling: one region (including single-function image output)
+./makeimage tests/makeimage_reference/config_makeimage_gauss-oversample.dat -o temptest/oversampled.fits --psf tests/psf_standard.fits --overpsf tests/psf_oversamp.fits --overpsf_scale 3 --overpsf_region 100:110,100:110 --output-functions=temptest/oversampled_single  > temptest/test_dump_null
+# tests of PSF oversampling: two regions, same PSF
+./makeimage tests/makeimage_reference/config_makeimage_gauss-oversample2.dat -o temptest/oversampled2both.fits --psf tests/psf_standard.fits --overpsf tests/psf_oversamp.fits --overpsf_scale 3 --overpsf_region 100:110,100:110 --overpsf_region 20:30,20:30 --output-functions=temptest/oversampled_double  > temptest/test_dump_null
+# tests of PSF oversampling: two regions, two PSFs
+./makeimage tests/makeimage_reference/config_makeimage_gauss-oversample2.dat -o temptest/oversampled2both_2psf.fits --psf tests/psf_standard.fits --overpsf tests/psf_oversamp.fits --overpsf_scale 3 --overpsf_region 100:110,100:110 --overpsf tests/psf_oversamp.fits --overpsf_scale 3 --overpsf_region 20:30,20:30  > temptest/test_dump_null
+# tests of PSF oversampling with PointSource model
+./makeimage tests/makeimage_reference/config_makeimage_pointsource-oversample.dat -o temptest/oversampled_pointsource.fits --psf tests/psf_standard.fits --overpsf tests/psf_oversamp.fits --overpsf_scale 3 --overpsf_region 80:120,80:120  > temptest/test_dump_null
+
+# testing that bad config files are caught (redirect stderr to temptest/test_dump* files):
+./makeimage tests/makeimage_reference/config_makeimage_sersictest512_bad1.dat &> temptest/test_dump6
+./makeimage tests/makeimage_reference/config_makeimage_sersictest512_bad2.dat &> temptest/test_dump7
+./makeimage tests/makeimage_reference/config_makeimage_sersictest512_bad3.dat &> temptest/test_dump8
+./makeimage tests/makeimage_reference/config_makeimage_sersictest512_bad4.dat &> temptest/test_dump9
+./makeimage tests/makeimage_reference/config_makeimage_sersictest512_bad5.dat &> temptest/test_dump10
+./makeimage tests/makeimage_reference/config_makeimage_sersic+exp512_nosize.dat &> temptest/test_dump11
+
+# testing that bad reference files are caught (redirect stderr to temptest/test_dump* files):
+./makeimage tests/makeimage_reference/config_makeimage_sersic+exp512_nosize.dat --refimage=tests/makeimage_reference/config_makeimage_gensersic512.dat &> temptest/test_dump12
+# testing that bad PSF files (non-FITS, FITS w/ NaN, nonexistent) are caught 
+# (redirect stderr to temptest/test_dump* files):
+./makeimage tests/makeimage_reference/config_makeimage_sersic+exp512.dat --psf=tests/makeimage_reference/config_makeimage_gensersic512.dat  &> temptest/test_dump13
+./makeimage tests/makeimage_reference/config_makeimage_sersic+exp512.dat --psf=tests/testimage_3x3_nan.fits  &> temptest/test_dump13b
+./makeimage tests/makeimage_reference/config_makeimage_sersic+exp512.dat --psf=tests/testimage_3x3_allzeros.fits  &> temptest/test_dump13c
+./makeimage tests/makeimage_reference/config_makeimage_sersic+exp512.dat --psf=_nofilewiththisname_wehope.fits  &> temptest/test_dump14
+
+./makeimage tests/imfit_reference/config_imfit_badparamline.dat  &> temptest/test_dump15
+
+
+
+
+echo ""
+
+echo -n "*** Diff comparison with archives: printing function list... "
+if (diff --brief temptest/test_dump0 tests/makeimage_reference/makeimage_textout0)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff temptest/test_dump0 tests/makeimage_reference/makeimage_textout0
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: biggertest... "
+if (diff --brief temptest/test_dump1 tests/makeimage_reference/makeimage_textout1)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff temptest/test_dump1 tests/makeimage_reference/makeimage_textout1
+  STATUS+=1
+fi
+if [[ $do_fits_tests == "1" ]]
+then
+  ./python/compare_fits_files.py temptest/biggertest.fits tests/biggertest_orig.fits
+  STATUS+=$?
+fi
+
+echo -n "*** Diff comparison with archives: gensersictest... "
+if (diff --brief temptest/test_dump2 tests/makeimage_reference/makeimage_textout2)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff temptest/test_dump2 tests/makeimage_reference/makeimage_textout2
+  STATUS+=1
+fi
+if [[ $do_fits_tests == "1" ]]
+then
+  ./python/compare_fits_files.py temptest/gensersictest.fits tests/gensersictest_orig.fits
+  STATUS+=$?
+fi
+
+echo -n "*** Diff comparison with archives: sersic + exponential... "
+if (diff --brief temptest/test_dump3 tests/makeimage_reference/makeimage_textout3)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff temptest/test_dump3 tests/makeimage_reference/makeimage_textout3
+  STATUS+=1
+fi
+if [[ $do_fits_tests == "1" ]]
+then
+  ./python/compare_fits_files.py temptest/sersic+exp.fits tests/sersic+exp_orig.fits
+  STATUS+=$?
+fi
+if [[ $do_fits_tests == "1" ]]
+then
+  ./python/compare_fits_files.py temptest/sersic+exp_b.fits tests/sersic+exp_orig.fits
+  STATUS+=$?
+fi
+
+echo -n "*** Diff comparison with archives: gensersictest + PSF convolution... "
+# note that here we are comparing a 512x512 output image with the 512x512 cutout of
+# a larger original image (to test that PSF convolution properly handles edges)
+if (diff --brief temptest/test_dump4 tests/makeimage_reference/makeimage_textout4)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff temptest/test_dump4 tests/makeimage_reference/makeimage_textout4
+  STATUS+=1
+fi
+if [[ $do_fits_tests == "1" ]]
+then
+  ./python/compare_fits_files.py temptest/gensersictest_conv.fits tests/gensersictest612_conv_cutout512.fits
+  STATUS+=$?
+fi
+
+if [[ $do_fits_tests == "1" ]]
+  echo -n "*** Testing that single-function images add up to combined-function image... "
+  echo ""
+then
+  ./python/compare_fits_files.py --compare-sum temptest/singleImage_conv1_Sersic.fits temptest/singleImage_conv2_Exponential.fits temptest/sersic+exp_conv.fits
+  STATUS+=$?
+fi
+
+
+# Note that we chose an OS-specific path for the reference file (image output is
+# marginally different for Linux vs OS X).
+# Also, we only test pixels with values > 1.0e-7, since ~ zero-valued pixels in FFT
+# output tend to vary depending on SSE, etc., and we're really only interested in how
+# well the PSF convolution of the source reproduces.
+if [[ $do_fits_tests == "1" ]]
+  echo -n "*** Testing that convolution with oversampled PSF works (single region)... "
+  echo ""
+then
+  ./python/compare_fits_files.py --min-value=1.0e-7 temptest/oversampled.fits tests/oversampled_orig.fits
+  STATUS+=$?
+fi
+
+if [[ $do_fits_tests == "1" ]]
+  echo -n "*** Testing that convolution with oversampled PSF works for single-function output (single region)... "
+  echo ""
+then
+  ./python/compare_fits_files.py --min-value=1.0e-7 temptest/oversampled_single1_Gaussian.fits tests/oversampled_orig.fits
+  STATUS+=$?
+fi
+
+if [[ $do_fits_tests == "1" ]]
+  echo -n "*** Testing that convolution with oversampled PSF works (two regions, same PSF)... "
+  echo ""
+then
+  ./python/compare_fits_files.py --min-value=1.0e-7 temptest/oversampled2both.fits tests/oversampled2both_orig.fits
+  STATUS+=$?
+fi
+
+if [[ $do_fits_tests == "1" ]]
+  echo -n "*** Testing that single-function images add up to combined-function image for convolution with oversampled PSF works... "
+  echo ""
+then
+  ./python/compare_fits_files.py --compare-sum --min-value=1.0e-7 temptest/oversampled_double1_Gaussian.fits temptest/oversampled_double2_Gaussian.fits temptest/oversampled2both.fits
+  STATUS+=$?
+fi
+
+if [[ $do_fits_tests == "1" ]]
+  echo -n "*** Testing that convolution with oversampled PSF works (two regions, 2 PSFs)... "
+  echo ""
+then
+  ./python/compare_fits_files.py --min-value=1.0e-7 temptest/oversampled2both_2psf.fits tests/oversampled2both_orig.fits
+  STATUS+=$?
+fi
+
+if [[ $do_fits_tests == "1" ]]
+  echo -n "*** Testing that using PointSource function in oversampled region works... "
+  echo ""
+then
+  ./python/compare_fits_files.py --min-value=1.0e-7 temptest/oversampled_pointsource.fits tests/oversampled_pointsource.fits
+  STATUS+=$?
+fi
+
+
+echo -n "*** Diff comparison with archives: print-fluxes mode... "
+if (diff --brief temptest/test_dump5 tests/makeimage_reference/makeimage_textout5)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff temptest/test_dump5 tests/makeimage_reference/makeimage_textout5
+  STATUS+=1
+fi
+echo -n "*** Diff comparison with archives: print-fluxes mode w/ FlatSky component... "
+if (diff --brief temptest/test_dump5b tests/makeimage_reference/makeimage_textout5b)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff temptest/test_dump5b tests/makeimage_reference/makeimage_textout5b
+  STATUS+=1
+fi
+echo -n "*** Diff comparison with archives: save-fluxes mode w/ FlatSky component... "
+./python/diff_printouts.py tests/makeimage_reference/savefluxes_out.dat temptest/savefluxes_out.dat --skip-first=1
+STATUS+=$?
+
+echo -n "*** Diff comparison with archives: bad config file 1... "
+if (diff --brief temptest/test_dump6 tests/makeimage_reference/makeimage_textout6)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff temptest/test_dump6 tests/makeimage_reference/makeimage_textout6
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad config file 2... "
+if (diff --brief temptest/test_dump7 tests/makeimage_reference/makeimage_textout7)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff temptest/test_dump7 tests/makeimage_reference/makeimage_textout7
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad config file 3... "
+if (diff --brief temptest/test_dump8 tests/makeimage_reference/makeimage_textout8)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff temptest/test_dump8 tests/makeimage_reference/makeimage_textout8
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad config file 4... "
+if (diff --brief temptest/test_dump9 tests/makeimage_reference/makeimage_textout9)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff temptest/test_dump9 tests/makeimage_reference/makeimage_textout9
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad config file 5... "
+if (diff --brief temptest/test_dump10 tests/makeimage_reference/makeimage_textout10)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff temptest/test_dump10 tests/makeimage_reference/makeimage_textout10
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad config file 6... "
+if (diff --brief temptest/test_dump11 tests/makeimage_reference/makeimage_textout11)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff temptest/test_dump11 tests/makeimage_reference/makeimage_textout11
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad reference file... "
+if (diff --brief temptest/test_dump12 tests/makeimage_reference/makeimage_textout12)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff temptest/test_dump12 tests/makeimage_reference/makeimage_textout12
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad PSF-image file... "
+if (diff --brief temptest/test_dump13 tests/makeimage_reference/makeimage_textout13)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff temptest/test_dump13 tests/makeimage_reference/makeimage_textout13
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: PSF-image file with NaN values... "
+if (diff --brief temptest/test_dump13b tests/makeimage_reference/makeimage_textout13b)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff temptest/test_dump13b tests/makeimage_reference/makeimage_textout13b
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: PSF-image file with all-zero values... "
+if (diff --brief temptest/test_dump13c tests/makeimage_reference/makeimage_textout13c)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff temptest/test_dump13c tests/makeimage_reference/makeimage_textout13c
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: non-existent PSF-image file... "
+if (diff --brief temptest/test_dump14 tests/makeimage_reference/makeimage_textout14)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff temptest/test_dump14 tests/makeimage_reference/makeimage_textout14
+  STATUS+=1
+fi
+
+echo -n "*** Diff comparison with archives: bad parameter specification... "
+if (diff --brief temptest/test_dump15 tests/makeimage_reference/makeimage_textout15)
+then
+  echo " OK"
+else
+  echo -e "   ${RED}Failed:${NC}Diff output:"
+  diff temptest/test_dump15 tests/makeimage_reference/makeimage_textout15
+  STATUS+=1
+fi
+
+
+echo ""
+if [ $STATUS -eq 1 ]
+then
+  echo -e "${RED}One test failed!${NC}"
+elif [ $STATUS -gt 1 ]
+then
+  echo -e "${RED}${STATUS} tests failed!${NC}"
+else
+  echo -e "${GREEN}All tests passed.${NC}"
+fi
+
+
+echo ""
+echo "Done."
+echo ""
+
+exit $STATUS

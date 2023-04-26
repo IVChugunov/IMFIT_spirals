@@ -1,0 +1,263 @@
+# *** Simple testing of makeimage
+
+# really small (2x2) image:
+./makeimage smalltest_config_4.dat -o smalltest_2x2.fits --ncols 2 --nrows 2
+
+# really small (2x2) image with slightly complicated config:
+./makeimage smalltest_config_4b.dat -o smalltest_2x2b.fits --ncols 2 --nrows 2
+
+# slightly larger & more complex (4x4) image:
+./makeimage smalltest_config_4c.dat -o smalltest.fits --ncols 4 --nrows 4
+
+# medium-sized, complex (64x64) image:
+# Exp+Sersic centered at (31.0,31.0) and Exp+Ser+Gauss at (10.5,13.0)
+# and Exp+Gauss at (2.5,2.0)
+./makeimage biggertest_config_4c.dat -o biggertest.fits --ncols 64 --nrows 64
+
+# medium-sized image with image size specified in config file
+./makeimage config_gensersictest_512.dat -o gensersictest.fits
+
+# testing that bad config files are caught:
+./makeimage tests/config_makeimage_sersictest512_bad1.dat
+./makeimage tests/config_makeimage_sersictest512_bad2.dat
+./makeimage tests/config_makeimage_sersictest512_bad3.dat
+
+
+# *** Testing functions
+# Result is a 1-D image (100 x 1 pixels); we asume that config_functest_XXX.dat
+# is derived from config_functest_template.dat (so that function center is at
+# x=50, y=1).
+./makeimage config_functest_XXX.dat -o functest_1d_XXX.fits --ncols 100 --nrows 1
+
+
+
+# *** Simple tests of psfconvolve
+# Generate reference image and text output:
+./psfconvolve_old gaussian_5x5.fits deltafn_5x5.fits convolve_out_gauss5-c-deltafn.fits
+mv convolve_out_gauss5-c-deltafn.fits tests/
+./psfconvolve_old deltafn_5x5.fits gaussian_5x5.fits convolve_out_deltafn-c-gauss5.fits
+mv convolve_out_deltafn-c-gauss5.fits tests/
+
+# Test new version (tell cmp to ignore first 724 bytes, thus skipping the header)
+./psfconvolve gaussian_5x5.fits deltafn_5x5.fits convolve_out_new.fits --printimages > temp.txt
+cmp convolve_out_new.fits tests/convolve_out_gauss5-c-deltafn.fits -i 724
+diff temp.txt tests/psfconvolve_printimages.txt
+./psfconvolve deltafn_5x5.fits gaussian_5x5.fits convolve_out_new.fits --printimages > temp2.txt
+cmp convolve_out_new.fits tests/convolve_out_deltafn-c-gauss5.fits -i 724
+diff temp2.txt tests/psfconvolve_printimages2.txt
+
+
+
+# *** Simple testing of imfit:
+
+# really small (2x2) image, made with modelimage + expdisk_tiny_testparams.dat:
+#    Input: x0,y0 = 2,2; PA = 90.0, ell = 0.5, I_0 = 100, h = 1.0
+./imfit testimage_expdisk_tiny.fits --config smalltest_config_4.dat
+
+./imfit testimage_expdisk_tiny.fits --config smalltest_config_4.dat --noise tiny_uniform_image.fits
+
+
+# small-ish (32x32) image, made with modelimage + expdisk_testparams_32x32.dat:
+#    Input: x0,y0 = 15,15; PA = 90.0, ell = 0.5, I_0 = 100, h = 20.0
+# The following *worked* with Dec 2009 code:
+$ ./imfit --config imfit_trial_config32.dat --noise uniform_image32.fits testimage_expdisk32.fits 
+Reduced Chi^2 = 0.000000
+AIC = 8.039254, BIC = 27.725887
+
+          x0 = 15.000000 +/- 0.000000
+          y0 = 15.000000 +/- 0.000000
+          PA = 90.000000 +/- 0.102986
+         ell = 0.500000 +/- 0.001695
+         I_0 = 100.000001 +/- 0.151606
+           h = 20.000000 +/- 0.071919
+
+# And with current (Mar 2010) code:
+$ ./imfit --config imfit_trial_config32_new.dat --noise uniform_image32.fits testimage_expdisk32.fits --nosubsampling
+Reduced Chi^2 = 0.000000
+Recalculated = 0.000000
+AIC = 12.082596, BIC = 41.588831
+
+          X0 = 15.000000 +/- 0.021376
+          Y0 = 15.000000 +/- 0.009135
+          PA = 90.000000 +/- 0.103197
+         ell = 0.500000 +/- 0.001711
+         I_0 = 100.000001 +/- 0.152262
+           h = 20.000000 +/- 0.072772
+
+
+# Testing with real image, 1 function
+# Testing on SDSS image of IC 3487
+$ ./imfit tests/ic3478rss_32x32.fits --config=imfit_config_ic3478_32x32.dat --gain=4.725 --readnoise=4.3 --sky=130.1
+
+(the following takes ~ 3s on MacBook Pro 2009)
+$ ./imfit tests/ic3478rss_small.fits --config=imfit_config_ic3478_sersic-only.dat --gain=4.725 --readnoise=4.3 --sky=130.1 --nosubsampling
+Reduced Chi^2 = 1.154560
+AIC = 72165.919965, BIC = 72229.218626
+
+X0		126.859231 # +/- 0.011653
+Y0		128.194370 # +/- 0.013465
+FUNCTION Sersic
+PA		19.515649 # +/- 0.240457
+ell		0.226685 # +/- 0.001690
+n		2.323015 # +/- 0.008230
+I_e		21.586762 # +/- 0.160352
+r_e		57.505012 # +/- 0.262275
+
+
+# Tests to catch errors:
+#    Testing to see that bad config files are caught:
+./imfit --config tests/config_makeimage_sersictest512_bad1.dat
+./imfit --config tests/config_makeimage_sersictest512_bad2.dat
+./imfit --config tests/config_makeimage_sersictest512_bad3.dat
+
+
+# Testing with real image, 2 functions
+# Testing imfit on SDSS image of NGC 3073: (takes about 22s on MacBook Pro 2009)
+$ ./imfit tests/n3073rss_small.fits --mask=tests/n3073rss_small_mask.fits --config=imfit_config_n3073.dat --gain=4.725 --readnoise=4.3 --sky=127.0 --nosubsampling
+Reduced Chi^2 = 1.376590
+AIC = 84956.235671, BIC = 85055.563606
+
+X0		129.621986 # +/- 0.004798
+Y0		146.152930 # +/- 0.004860
+FUNCTION Sersic
+PA		112.288192 # +/- 0.240556
+ell		0.177726 # +/- 0.001404
+n		1.972908 # +/- 0.009520
+I_e		207.351400 # +/- 2.028667
+r_e		14.519065 # +/- 0.101815
+FUNCTION Exponential
+PA		59.032553 # +/- 0.688702
+ell		0.163450 # +/- 0.003759
+I_0		75.228578 # +/- 1.026748
+h		45.559703 # +/- 0.336000
+
+# Same, with subsampling turned on: (takes about 6s on MacBook Pro 2009 for normal
+# debugging version, 4.5s for optimized-compile version)
+$ ./imfit tests/n3073rss_small.fits --mask=tests/n3073rss_small_mask.fits --config=imfit_config_n3073.dat --gain=4.725 --readnoise=4.3 --sky=127.0
+Reduced Chi^2 = 1.578748
+AIC = 97429.182628, BIC = 97528.510563
+
+X0		129.663539 # +/- 0.004982
+Y0		146.113296 # +/- 0.005183
+FUNCTION Sersic
+PA		180.000000 # +/- 9579033.109753
+ell		0.000000 # +/- 0.000000
+n		2.017579 # +/- 0.010438
+I_e		199.127859 # +/- 2.182575
+r_e		13.422585 # +/- 0.108257
+FUNCTION Exponential
+PA		83.307892 # +/- 0.509672
+ell		0.194880 # +/- 0.004006
+I_0		73.894563 # +/- 1.154100
+h		47.033906 # +/- 0.415080
+
+# Same, but with subsampling on *and* using DE (converges after about 400 generations; 
+# takes ~ 19 min) -- in this case, the bulge & disk seemed to have swapped places!
+# This is an interesting case of a nominally better fit (lower chi^2) that is not
+# preferable [note that I_0 has become pegged].
+./imfit tests/n3073rss_small.fits --mask=tests/n3073rss_small_mask.fits --config=imfit_config_n3073.dat --gain=4.725 --readnoise=4.3 --sky=127.0 --de
+Reduced Chi^2 = 1.410906
+AIC = 87073.521544, BIC = 87172.849479
+
+          X0 = 129.637626
+          Y0 = 146.109696
+          PA = 88.263149
+         ell = 0.108623
+           n = 3.414654
+         I_e = 33.138663
+         r_e = 48.886429
+          PA = 125.500303
+         ell = 0.582893
+         I_0 = 500.000000
+           h = 6.200682
+
+# Same as previous, but with limits on I_0 reset to 0,150 instead of 0,500 
+# [imfit_config_n3073_v2.dat]. DE converged after about 400 generations (15 min, with
+# convergence test causing DE solver to exit).
+./imfit tests/n3073rss_small.fits --mask=tests/n3073rss_small_mask.fits --config=imfit_config_n3073_v2.dat --gain=4.725 --readnoise=4.3 --sky=127.0 --de
+Reduced Chi^2 = 1.370615
+AIC = 84587.563230, BIC = 84686.891165
+
+          X0 = 129.665623
+          Y0 = 146.098974
+          PA = 111.957921
+         ell = 0.179379
+           n = 2.007119
+         I_e = 203.179765
+         r_e = 14.703579
+          PA = 58.361212
+         ell = 0.164939
+         I_0 = 74.390935
+           h = 45.611168
+
+
+
+
+
+*** Simple testing of profilefit:
+
+./profilefit profile_data/n5831_total.dat config_profilefit_sersic.dat
+
+*** mpfit status = 1 -- SUCCESS: Convergence in chi-square value.
+  CHI-SQUARE = 0.160083    (43 DOF)
+  INITIAL CHI^2 = 12.569518
+        NPAR = 4
+       NFREE = 3
+     NPEGGED = 0
+     NITER = 6
+      NFEV = 22
+
+Reduced Chi^2 = 0.003723
+AIC = 6.731512, BIC = 11.646007
+
+X0		0.000000 # +/- 0.000000
+FUNCTION Sersic-1D
+n		4.714218 # +/- 1.175446
+mu_e		21.071312 # +/- 1.147649
+r_e		25.377895 # +/- 14.458686
+
+# Same, with DE
+./profilefit profile_data/n5831_total.dat config_profilefit_sersic.dat --de
+
+Reduced Chi^2 = 0.003723
+AIC = 6.731512, BIC = 11.646007
+
+          X0 = 0.000000
+           n = 4.714218
+        mu_e = 21.071312
+         r_e = 25.377896
+
+# Check that in DE mode, we exit with error when config file doesn't have limits
+# for all parameters:
+./profilefit profile_data/n5831_total.dat config_profilefit_sersic_nolims.dat --de
+
+*** Parameter limits must be supplied for all parameters when using DE!
+Exiting...
+
+
+* Test Core-Sersic fitting:
+./profilefit profile_data/n3348_total_fix.dat config_profilefit_core-sersic.dat
+
+*** mpfit status = 1 -- SUCCESS: Convergence in chi-square value.
+  CHI-SQUARE = 0.062599    (37 DOF)
+  INITIAL CHI^2 = 6.749927
+        NPAR = 7
+       NFREE = 6
+     NPEGGED = 0
+     NITER = 12
+      NFEV = 78
+
+Reduced Chi^2 = 0.001692
+AIC = 14.395933, BIC = 22.629800
+
+X0		0.000000 # +/- 0.000000
+FUNCTION Core-Sersic-1D
+n		3.860566 # +/- 2.145629
+mu_b		15.231779 # +/- 1.212633
+r_e		22.370947 # +/- 10.836320
+r_b		0.344100 # +/- 0.770049
+alpha		3.790065 # +/- 40.115956
+gamma		0.139916 # +/- 0.554911
+
+
+

@@ -1,0 +1,13 @@
+Value from config file: nColumns = 512
+Value from config file: nRows = 512
+* No PSF image supplied -- no image convolution will be done!
+Function: Sersic
+Function: Exponential
+Model Object: 262144 data values (pixels)
+11 total parameters
+
+Saving output model image ("temptest/sersic+exp.fits") ...
+temptest/singleImage1_Sersic.fits
+temptest/singleImage2_Exponential.fits
+Done!
+

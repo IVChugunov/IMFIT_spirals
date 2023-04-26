@@ -1,0 +1,22 @@
+Value from config file: nColumns = 512
+Value from config file: nRows = 512
+
+User requested that no images be saved!
+
+* No PSF image supplied -- no image convolution will be done!
+Function: Sersic
+Function: Exponential
+Model Object: 262144 data values (pixels)
+11 total parameters
+
+Estimating fluxes on 5000 x 5000 image...
+
+Component                 Flux        Magnitude   Fraction   Label
+Sersic                    2.2635e+06      ---     0.86495
+Exponential               3.5343e+05      ---     0.13505
+
+Total                     2.6169e+06      ---     1.00000
+
+
+Done!
+

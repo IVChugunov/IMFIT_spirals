@@ -1,0 +1,49 @@
+	Image file = tests/testimage_poisson_lowsn20.fits
+	* Using Poisson maximum-likelihood-ratio statistic instead of chi^2 for minimization!
+	configuration file = tests/imfit_reference/config_imfit_poisson.dat
+Reading data image ("tests/testimage_poisson_lowsn20.fits") ...
+naxis1 [# pixels/row] = 150, naxis2 [# pixels/col] = 150; nPixels_tot = 22500
+* No PSF image supplied -- no image convolution will be done!
+Function: Exponential
+Function: FlatSky
+7 total parameters
+Model Object: 22500 data values (pixels)
+ModelObject: mask vector applied to weight vector. (22500 valid pixels remain)
+6 free parameters (22494 degrees of freedom)
+Estimated memory use: 2520000 bytes (2.4 MB)
+
+Performing fit by minimizing Poisson MLR statistic:
+Calling Levenberg-Marquardt solver ...
+	mpfit iteration 1: fit statistic = 24456.311151
+	mpfit iteration 2: fit statistic = 22781.273191
+	mpfit iteration 3: fit statistic = 22778.493633
+	mpfit iteration 4: fit statistic = 22778.493017
+	mpfit iteration 5: fit statistic = 22778.493017
+
+*** mpfit status = 1 -- SUCCESS: Convergence in fit-statistic value.
+  POISSON-MLR STATISTIC = 22778.493017    (22494 DOF)
+  INITIAL POISSON-MLR STATISTIC = 30269.874148
+        NPAR = 7
+       NFREE = 6
+     NPEGGED = 1
+     NITER = 6
+      NFEV = 36
+
+Reduced Chi^2 equivalent = 1.012648
+AIC = 22790.496751, BIC = 22838.620640
+
+X0		75.0296 # +/- 0.0597
+Y0		74.9377 # +/- 0.1197
+FUNCTION Exponential
+PA		      0 # +/- 0
+ell		0.499929 # +/- 0.003958
+I_0		99.7605 # +/- 0.79313
+h		 19.953 # +/- 0.13366
+FUNCTION FlatSky
+I_sky		     20 # +/- 0
+
+Saving best-fit parameters in file "bestfit_parameters_imfit.dat"
+
+(Elapsed time: 0.062425 sec for fit, 0.066630 sec total)
+Done!
+

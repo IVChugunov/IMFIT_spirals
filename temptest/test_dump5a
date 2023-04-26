@@ -1,0 +1,55 @@
+	Image file = tests/testimage_poisson_lowsn20.fits
+	* Using standard Cash statistic instead of chi^2 for minimization!
+	* Nelder-Mead simplex solver selected!
+	configuration file = tests/imfit_reference/config_imfit_poisson.dat
+Reading data image ("tests/testimage_poisson_lowsn20.fits") ...
+naxis1 [# pixels/row] = 150, naxis2 [# pixels/col] = 150; nPixels_tot = 22500
+* No PSF image supplied -- no image convolution will be done!
+Function: Exponential
+Function: FlatSky
+7 total parameters
+Model Object: 22500 data values (pixels)
+ModelObject: mask vector applied to weight vector. (22500 valid pixels remain)
+6 free parameters (22494 degrees of freedom)
+Estimated memory use: 900000 bytes (878.9 KB)
+
+Performing fit by minimizing Cash statistic:
+Calling Nelder-Mead Simplex solver ..
+	N-M simplex: function call 20: objective = -2609347.244756
+	N-M simplex: function call 40: objective = -2610612.496198
+	N-M simplex: function call 60: objective = -2611367.826769
+	N-M simplex: function call 80: objective = -2611499.266902
+	N-M simplex: function call 100: objective = -2611544.128126
+	N-M simplex: function call 120: objective = -2611548.534145
+	N-M simplex: function call 140: objective = -2611551.354463
+	N-M simplex: function call 160: objective = -2611556.725663
+	N-M simplex: function call 180: objective = -2611572.917709
+	N-M simplex: function call 200: objective = -2611583.077586
+	N-M simplex: function call 220: objective = -2611589.376826
+	N-M simplex: function call 240: objective = -2611591.253511
+	N-M simplex: function call 260: objective = -2611596.222095
+	N-M simplex: function call 280: objective = -2611599.743589
+	N-M simplex: function call 300: objective = -2611601.121561
+	N-M simplex: function call 320: objective = -2611601.156321
+Nelder-Mead Simplex: status = 3 -- SUCCESS: ftol_rel or ftol_abs reached
+
+  CASH STATISTIC = -2611601.272876
+  NFEV = 329
+
+AIC = -2611589.269141, BIC = -2611541.145252
+
+X0		75.0318
+Y0		74.9458
+FUNCTION Exponential
+PA		0.0387723
+ell		0.500019
+I_0		  99.72
+h		19.9584
+FUNCTION FlatSky
+I_sky		     20
+
+Saving best-fit parameters in file "bestfit_parameters_imfit.dat"
+
+(Elapsed time: 0.721141 sec for fit, 0.754091 sec total)
+Done!
+

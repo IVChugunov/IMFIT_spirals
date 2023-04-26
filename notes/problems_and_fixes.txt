@@ -1,0 +1,322 @@
+NOTES ON PROBLEMS/BUGS ENCOUNTED IN IMFIT, HOW WE SOLVED THEM,
+AND POSSIBLE WAYS TO AVOID SIMILAR PROBLEMS IN THE FUTURE
+
+
+*** 20--21 Feb 2010: Negative background pixel values + default sky=0 
+	led to "nan" values in weight image, propagating "nan" values into subsequent calculations
+
+# Testing imfit on SDSS image of NGC 3073:
+# Using Dec 2009 code:
+$ ./imfit testing/n3073rss_small.fits --mask=testing/n3073rss_small_mask.fits --config=imfit_config_n3073.dat --gain=4.725 --readnoise=4.3
+
+FAILED -- program ran forever
+
+# Testing on SDSS image of IC 3487
+$ ./imfit_db testing/ic3478rss_small.fits --config=imfit_config_ic3478.dat --gain=4.725 --readnoise=4.3
+
+FAILED [in similar fashion]
+Works on 32x32 and 64x64 cutouts of ic3478 image; FAILS on 128x128 cutout.
+
+TRACKING DOWN THE PROBLEM:
+	1. Debugging printouts indicates that after 8 calls to ComputeDeviates(), the ninth
+	call by mpfit passes a vector of "nan" values for the parameters
+		-- this is 1 call at start of mpfit plus 7 calls by mp_fdjac2
+
+	Normal behavior is nParam calls by mp_fdjac2, with only the last one having
+	different parameter values.
+	
+	2. OK, problem appears to be in the "inner loop" of mpfit (~ line 900);
+	this call to ComputeDeviates() is with reasonable (altered) param values in
+	32x32 and 64x64 cases, but with "nan" in 128x128 and full image cases.
+
+	3. Problem now appears to be present by around line 657: wa1 = all "nan"
+	4. Problem now appears to be in first call to mp_qrfac (line 534)
+		-- just before this, wa1 = all 0; just after wa1 = all "nan"
+		-- wa1 becomes input parameter rdiag inside mp_qrfac
+
+Function definition and actual call:
+void mp_qrfac(int m, int n, double *a, int lda, 
+              int pivot, int *ipvt, int lipvt,
+              double *rdiag, double *acnorm, double *wa)
+  mp_qrfac(m, nfree, fjac, ldfjac, 1, ipvt, nfree, wa1, wa2, wa3);
+
+	5. OK, now we've localized the problem to the first few lines of mp_qrfac:
+		specifically,
+		    acnorm[j] = mp_enorm(m, &a[ij]);
+		which populates acnorm[j] with "nan"
+		Note that m = 16384 for the 128x128 image
+	
+	6. Problem is apparently *not* in the allocation of fjac (I replaced the use of
+	Craig's mp_alloc macro with a more straightforward calloc use; no difference).
+	
+	7. Problem may be in mp_enorm...
+	[x] Possible check: have mp_enorm print all values of fjac[] that it's
+	trying to sum up.
+	
+	8. Problem localized to: occasionaly "nan" values within fjac[]
+		-- somehow, we are occasionally generating "nan" values in the Jacobian
+		matrix.
+	
+	[-] Possible kludge solution: insert code into mp_enorm which checks for
+	non-finite values of x and sets them to zero.
+		-- Doesn't really work, because "nan" values in fjac still cause problems
+		elsewhere in mp_qrfac (result is that program exits cleanly after one
+		iteration with mpfit code = 2)
+
+	9. Problem is in mp_fdjac2: occasionally, "nan" values are generated and stored
+	in fjac.
+	
+		[X] Possible approaches/things to try:
+			[] Compute two-sided numerical derivatives?
+			[x] insert tests into mpfit to figure out where "nan" appears...
+				-- both fvec (pre-computed) and wa (computed in fdjac2) contain
+				"nan" values...
+			
+			[X] Something weird in the noise/weight array?
+
+
+* PROBLEM FOUND:
+[X] Possible problem(s) in noise computation:
+	In a sky-sub. image, there will be pixels with *negative* values.
+	If we don't specify a (large enough) sky background, then ModelObject.GenerateErrorVector
+will use those negative pixel values to compute weights ... 
+    noise_squared = dataVector[z]/gain + sky_plus_readNoise;
+    weightVector[z] = 1.0 / sqrt(noise_squared);
+if dataVector[z] < 0, then it's possible for noise_squared to be <= 0, in which
+case we'll have either "/ 0" or (more likely) "/ sqrt(negative-number)"
+
+WHAT WENT WRONG:
+	There was a bug in the noise-calculation code (ModelObject.GenerateErrorVector)
+which allowed for possible "nan" values in the weight vector.
+	The (unquestioned) *assumption* was that all (sky + pixel) values would be
+positive; however, if sky=0 (or is just low) and some pixels have negative values,
+then noise_squared could end up negative, leading to sqrt(noise_squared) --> "nan"
+	This did not show up when fitting artificial images because there were no
+negative pixels; it did not show up in earlier fits of SDSS images because we always
+remembered to specify a large sky value.
+	It *did* show up (Feb 2010) when we were fitting cutouts of SDSS images because
+the large (128x128) cutout had negative pixel values *and* we forgot to specify
+a sky value (thus setting sky internally to 0).
+
+	(mpfit should, ideally, have a check for "nan" values, but it was most likely
+written in a time when compilers did *not* allow for "nan" generation...)
+
+
+FIXES:
+	[X] GenerateErrorVector: Check final weightVector for "nan" (and also negative?) 
+	values; squawk and die if any are found
+	-- actually, it would be good to check user-supplied weight image as well
+	(e.g., should not be all-bad-pixel; should not be negative, etc.)
+	
+	[X] Warn user if no sky value was supplied (but go ahead, since this may be
+	the correct approach for some images)
+	
+	[] (future) When computing weights from image, median-smooth image first
+	(GALFIT does this; smooths out CRs and large negative values...)
+
+
+
+
+*** 28 May 2010: "fixed" parameters do not stay fixed
+
+Parameter with limit-value "fixed" is recognized as "fixed":
+Startup output includes:
+	"Found a parameter limit: fixed"
+
+But this is not enforced:
+	Final parameter value was different!
+	PrintResults says: "NPAR = 8, NFREE = 8"
+
+* PROBLEM FOUND:
+In config_file_parser.cpp:
+	AddParameterAndLimit() in config_file_parser.cpp returns true if the line it
+just processed had a parameter limit.
+	ReadConfigFile() is supposed to check this return value, and set parameterLimitsFound
+to true if ever AddParameterAndLimit returns true.  BUT this was only happening for
+X0! (In fact, only for the X0 line was the return value even stored!)
+	Consequently, if all of the X0 lines did *not* have parameter limits, ReadConfigFile()
+would return parameterLimitsFound as false (even though the parameterLimits structure it 
+also returned to imfit *did* have limits...), and imfit would proceed to pass a pointer 
+set to NULL as the parameter-limits structure to mpfit.
+
+FIXES:
+	Added checks of AddParameterAndLimit's return value after *each* call to it in
+ReadConfigFile().
+
+
+
+
+*** 1 June 2010: Convolution problems
+
+Convolution gets screwed up when image is non-square (but is OK when image is
+square); first manifested as mysterious failure of imfit in fitting non-square
+NGC 1332 and 7457 images only when using PSF convolution.
+
+* PROBLEM FOUND:
+In convolver.cpp:
+	All three calls to FFTW plan_* functions had dimensions mixed up: number of rows and
+number of columns were swapped (partly due to rather opaque discussion of dimensions
+in FFTW documentation...).
+
+FIXES:
+	Swap nColumns and nRows in calls to plan_* functions.
+
+
+
+
+*** 14 Sept 2010: Problem with DE mode in profilefit
+
+Testing latest changes to profilefit (adding option to save best-fit params
+in config-format text file), I found that while the LM fit of profile_data/n5831_total.dat
+worked normally, the DE test of the same data *failed*: the initial chi^2 ("energy")
+value was very negative, and subsequent evolution resulted in -inf values (and bad --
+though finite -- values for the parameters).
+
+Generation    0: bestEnergy = -10591748006.7271785736
+Generation   10: bestEnergy = -228075485079.5437011719
+Generation   20: bestEnergy =         -inf   (relative change = 1.000000e+00)
+
+Since it wasn't clear when this problem was introduced, I tried using the advice
+in the Mercurial book (Chapter 9) regarding "hg --bisect".
+
+1. Find an earlier revision where things worked:
+$ cd ~/coding
+(Try a revision from August...)
+$ clone --rev 18 imfit imfit-rev18
+$ cd imfit-rev18
+$ scons profilefit
+... run tests -- OK, this revision [21 Aug 2010] works!
+
+2. Make new up-to-date clone of repository
+$ cd ~/coding
+$ hg clone imfit imfit-bugfind
+$ cd imfit-bugfind
+
+3. Set up hg bisect
+$ hg bisect --reset
+tell bisect that the current revision (24, the tip) is bad, and that rev 18 is good
+$ hg bisect --bad
+$ hg bisect --good 18
+
+4. Iterate until we find the last good changeset
+$ scons profilefit
+... run tests
+IF things works as we expect:
+	$ hg bisect --good
+ELSE (things fail):
+	$ hg bisect --bad
+	
+OK... this wasn't entirely necessary, since it turns out that changes *since*
+rev 24 were the problem (i.e., cloning the current repository yields a version
+of profilefit that works properly...)
+
+The problem *appears* to be the point where we add an extra command-line
+option
+	For some reason, adding *any* new option or flag in ProcessInput triggers
+	this!
+
+(NOTE: I've also noticed that even when it behaves, the chi^2 values seem to
+be wrong...:
+	Final chi^2 for LM fit: 0.160083
+	Final chi^2 for DE fit: 142808336.952452
+
+* PROBLEM FOUND:
+When we added nCombined and nCombined_sqrt to model_object.h/.cpp, we
+ensured that they were initialized by a call to ModelObject::AddImageDataVector().
+But when using ModelObject1d, this method is never called, and therefore
+nCombined and nCombined_sqrt are never initialized.
+
+Since nCombined is used in ModelObject::ChiSquared, which is *not*
+overridden in ModelObject1d, an unitialized value gets multiplied into
+the chi^2 computation.
+
+Presumably, adding a new option causes an extra round of memory allocation
+and/or shifting that didn't happen before, and so a *different* unitialized value
+ends up in the integer storage for nCombined.
+
+FIXES:
+	Initialize nCombined (and nCombined_sqrt, for good measure) in ModelObject1d
+constructor.
+
+
+
+
+*** 3 Mar 2011: Problem with profilefit: convolutions with PSF
+
+Stephanie Rusli found a problem when trying to run profilefit with a PSF
+on a (resampled) galaxy profile (testfile.txt):
+
+	** ModelObject1d::CreateModelImage -- non-finite values detected in parameter vector!
+
+(No problems when running profilefit without PSF convolution.)
+
+Running debugging version of profilefit ("scons define=DEBUG profilefit") showed that
+problem was "nan" values in very first version of model profile.
+
+Running profilefit in "generate input model and save" model ("--no-fitting")
+showed that convolved input profile was indeed composed of all "nan".
+$ ../profilefit testfile.txt config_profilefit_core-sersic.dat --save-best-fit initial_model_profile_convolved.dat --no-fitting --psf psf_5328_major.dat
+
+However, running psfconvolve1d produced an output profile (convolve1d_out.dat)
+with *no* "nan" values:
+$ ../psfconvolve1d initial_model_profile_no-psf.dat psf_5328_major.dat 
+
+Problem is somewhere in the generation (or transfer) of the model profile, prior
+to convolution, in ModelObject1d.CreateModelImage()
+
+* PROBLEM FOUND: [?]
+
+When x=0, Core-Sersic-1D return "inf" as a value, which propagates through and
+screws up the convolution!  [Stephanie had a case where another galaxy profiles
+did *not* have problems; this seems to be because convolver1d.cpp extrapolated
+a value of x=0 that was actually ~ 10^-16 instead of 0, and so no infinite value
+was computed.]
+
+[] * FIXES:
+
+Handle the x=0 case for Core-Sersic-1D!
+	[] ? if (x < x_min) ==> x = x_min 
+
+
+
+
+*** 20 Feb 2014: Problem with using OpenMP multi-threading on 32-bit Linux
+
+Persistent, confusing problem running imfit and makeimage on 32-bit
+Linux systems (some, anyway) with OpenMP enabled.  Result was mysterious
+crashes, sometimes with error messages related to "libgomp" (the GCC
+OpenMP library).
+
+* PROBLEM FOUND: uninitialized boolean and integer variables!
+
+Basically, the boolean flag options.maxThreadsSet and the integer
+variable options.maxThreads were never given default values at the start
+of main(). When compiled on MacOS X (and my 64-bit Linux installation),
+they ended up with default values of 0, but on 32-bit Linux they
+received random integer values. This had the effect of making
+options.maxThreadsSet be interpreted as "true" -- so that
+ModelObject->SetMaxThreads(options.maxThreads) was called, with
+options.maxThreads having an absurdly large value for the number of
+threads (e.g., 134528901). Then, in ModelObject->SetMaxThreads, the
+OpenMP function omp_set_num_threads() was called with the
+options.maxThreads value... (OpenMP is not meant to use millions of
+threads!)
+
+* FIXES:
+
+Added two lines to the early part of main() [the second line is the really
+critical one]:
+  options.maxThreads = 0;
+  options.maxThreadsSet = false;
+
+
+
+
+*** TROUBLESHOOTING TIPS:
+	<> Try fitting image with constant weights (e.g., uniform "noise image")
+		-- this would have identified the 20 Feb 2010 problem as having to do
+		with noise generation
+	<> Check values of gain, read-noise, and sky
+	<> Check that size (radius, etc.) values and limits are in *pixels*, not arcsec!
+	
+	

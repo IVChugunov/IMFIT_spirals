@@ -1,0 +1,75 @@
+	Image file = tests/ic3478rss_64x64.fits[10:64,10:64]
+	configuration file = tests/imfit_reference/imfit_config_ic3478_64x64b.dat
+	number of bootstrap iterations = 5
+	bootstrap best-fit parameters to be saved in temptest/temp_bootstrap_output2.dat
+	RNG seed = 10
+Value from config file: gain = 4.725000 e-/ADU
+Value from config file: read noise = 4.300000 e-
+Value from config file: original sky = 130.100000
+Reading data image ("tests/ic3478rss_64x64.fits[10:64,10:64]") ...
+naxis1 [# pixels/row] = 55, naxis2 [# pixels/col] = 55; nPixels_tot = 3025
+* No PSF image supplied -- no image convolution will be done!
+* No noise image supplied ... will generate noise image from input data image.
+Function: Sersic
+7 total parameters
+Model Object: 3025 data values (pixels)
+ModelObject: mask vector applied to weight vector. (3025 valid pixels remain)
+7 free parameters (3018 degrees of freedom)
+Estimated memory use: 338800 bytes (330.9 KB)
+
+Performing fit by minimizing chi^2 (data-based errors):
+Calling Levenberg-Marquardt solver ...
+	mpfit iteration 1: fit statistic = 129531.795528
+	mpfit iteration 2: fit statistic = 39750.109222
+	mpfit iteration 3: fit statistic = 6787.880593
+	mpfit iteration 4: fit statistic = 3888.505389
+	mpfit iteration 5: fit statistic = 3630.587630
+	mpfit iteration 6: fit statistic = 3548.248823
+	mpfit iteration 7: fit statistic = 3493.884036
+	mpfit iteration 8: fit statistic = 3478.445974
+	mpfit iteration 9: fit statistic = 3436.639244
+	mpfit iteration 10: fit statistic = 3424.466628
+	mpfit iteration 11: fit statistic = 3424.466586
+	mpfit iteration 12: fit statistic = 3424.466586
+
+*** mpfit status = 1 -- SUCCESS: Convergence in fit-statistic value.
+  CHI-SQUARE = 3424.466586    (3018 DOF)
+  INITIAL CHI^2 = 450512.585084
+        NPAR = 7
+       NFREE = 7
+     NPEGGED = 0
+     NITER = 13
+      NFEV = 100
+
+Reduced Chi^2 = 1.134681
+AIC = 3438.503709, BIC = 3480.569251
+
+X0		32.9497 # +/- 0.0130
+Y0		34.0986 # +/- 0.0158
+FUNCTION Sersic
+PA		18.1649 # +/- 0.33697
+ell		0.234412 # +/- 0.0025119
+n		2.35479 # +/- 0.019547
+I_e		21.2168 # +/- 0.47537
+r_e		58.0709 # +/- 0.93059
+
+
+Now doing bootstrap resampling (5 iterations) to estimate errors...
+Starting bootstrap iterations (L-M solver):
+[================>                                                               ] 1 (20.0%)[================================>                                               ] 2 (40.0%)[================================================>                               ] 3 (60.0%)[================================================================>               ] 4 (80.0%)[================================================================================] 5 (100.0%)
+
+Statistics for parameter values from bootstrap resampling (5 successful iterations):
+Best-fit		 Bootstrap      [68% conf.int., half-width]; (mean +/- standard deviation)
+X0 = 32.9497  +0.0547039, -0.00239716    [32.9473 -- 33.0044, 0.0285506];  (32.9758 +/- 0.0255166)
+Y0 = 34.0986  +0.027661, -0.0277509    [34.0708 -- 34.1262, 0.0277059];  (34.0966 +/- 0.026632)
+PA = 18.1649  +0.494975, -0.188546    [17.9763 -- 18.6599, 0.34176];  (18.2134 +/- 0.268773)
+ell = 0.234412  +0.00191482, -0.00276547    [0.231646 -- 0.236326, 0.00234015];  (0.234211 +/- 0.00179863)
+n = 2.35479  +0.0768108, -0.0337531    [2.32104 -- 2.4316, 0.0552819];  (2.36315 +/- 0.0426835)
+I_e = 21.2168  +0.830047, -1.62082    [19.596 -- 22.0468, 1.22544];  (21.0916 +/- 0.953874)
+r_e = 58.0709  +3.24553, -1.56195    [56.509 -- 61.3164, 2.40374];  (58.3155 +/- 1.88679)
+Bootstrap-resampling output saved to file "temptest/temp_bootstrap_output2.dat".
+Saving best-fit parameters in file "bestfit_parameters_imfit.dat"
+
+(Elapsed time: 0.141866 sec for fit, 0.164815 for bootstrap, 0.311015 sec total)
+Done!
+

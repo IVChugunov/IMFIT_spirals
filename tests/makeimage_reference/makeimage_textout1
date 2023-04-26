@@ -1,0 +1,14 @@
+* No PSF image supplied -- no image convolution will be done!
+Function: Exponential
+Function: Sersic
+Function: Exponential
+Function: Sersic
+Function: Gaussian
+Function: Exponential
+Function: Gaussian
+Model Object: 4096 data values (pixels)
+36 total parameters
+
+Saving output model image ("temptest/biggertest.fits") ...
+Done!
+
