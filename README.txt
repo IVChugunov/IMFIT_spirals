@@ -1,3 +1,5 @@
+# The following info was taken from the original IMFIT package.
+
 This archive contains imfit, a program for fitting arbitrary sets of 2D model
 functions to astronomical images in FITS format. Also included are makeimage, a
 program for generating model FITS images (using, for example, the output of

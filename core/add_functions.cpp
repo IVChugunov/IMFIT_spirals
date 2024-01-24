@@ -57,6 +57,9 @@
 #include "func_tilted-sky-plane.h"
 #include "func_spiral.h"
 #include "func_spiral_broken.h"
+#include "func_spiral_0b.h"
+#include "func_spiral_1b.h"
+#include "func_spiral_2b.h"
 // modules requiring GSL:
 //#ifndef NO_GSL
 #include "func_edge-on-disk.h"
@@ -163,12 +166,21 @@ void PopulateFactoryMap( map<string, factory*>& input_factory_map )
   
   CoreSersic::GetClassShortName(classFuncName);
   input_factory_map[classFuncName] = new funcobj_factory<CoreSersic>();
-
+  
   SpiralBranch::GetClassShortName(classFuncName);
   input_factory_map[classFuncName] = new funcobj_factory<SpiralBranch>();
   
   SpiralBranchBroken::GetClassShortName(classFuncName);
   input_factory_map[classFuncName] = new funcobj_factory<SpiralBranchBroken>();
+
+  SpiralArm0b::GetClassShortName(classFuncName);
+  input_factory_map[classFuncName] = new funcobj_factory<SpiralArm0b>();
+  
+  SpiralArm1b::GetClassShortName(classFuncName);
+  input_factory_map[classFuncName] = new funcobj_factory<SpiralArm1b>();
+  
+  SpiralArm2b::GetClassShortName(classFuncName);
+  input_factory_map[classFuncName] = new funcobj_factory<SpiralArm2b>();
 
   GenExponential::GetClassShortName(classFuncName);
   input_factory_map[classFuncName] = new funcobj_factory<GenExponential>();

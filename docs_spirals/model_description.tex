@@ -1,0 +1,163 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{verbatim}
+\usepackage{gensymb}
+\usepackage[width=16cm,top=3cm,height=24cm]{geometry}
+
+\title{Spiral arms model description}
+\author{Ilia V. Chugunov}
+
+\begin{document}
+	
+\maketitle
+	
+\section{General considerations}
+Our model describes 2D surface brightness distribution in spiral arms. Each arm is modelled independently, and model parameters correspond to arms physical properties or connected with them. The number of parameters (21 for a single arm for main function) makes the model flexible enough.
+
+Modified version of the IMFIT package with an implemented spiral arms model is available at~\url{https://github.com/IVChugunov/IMFIT_spirals}. There are three functions which are very similar to each other, the only difference is that one produces smooth spiral arms (\verb*|SpiralArm0b|) and others produce once- and twice-bent arms (\verb*|SpiralArm1b| and \verb*|SpiralArm2b|, respectively). The first is considered the main function, and others are briefly described at Sec.~\ref{sec:bending}.
+
+\section{Exact formula}
+To describe 2D surface brightness distribution, polar coordinates $I(r, \varphi)$ in the galaxy disc plane are used. Here, $r$ is a galactocentric distance, $\varphi$ is an azimuthal angle counted from some direction. Let the beginning of a spiral arm be located at azimuthal angle $\varphi_0$. For a convenience we'll be use coordinate $\psi$ (winding angle) which is counted from the beginning of a spiral arm towards its winding direction. Thus $\psi = \varphi - \varphi_0$ if spiral arm winds counterclockwise, and $\psi = \varphi_0 - \varphi$ in the opposite case. The final formula consists of a few parts:
+
+\begin{equation}
+	I(r, \psi) = I_\parallel(r(\psi), \psi) \times I_\bot(r - r(\psi), \psi)
+\end{equation}
+
+Here, $I_\parallel$ is a surface brightness distribution along the ridge-line of the spiral, which is described by the shape function of the arm $r(\psi)$. $I_\bot$ is a surface brightness distribution across the arm. Now let's consider each of the functions separately.
+
+\subsection{Arm shape: $r(\psi)$}
+Shape function of the arm $r(\psi)$ describes the overall shape of the spiral arm, more precisely defines its ridge-line. In our implementation, $\log r$ is a 4-th degree polynomial of $\psi$. (In the case of logarithmic spiral, $\log r$ is a linear function of $\psi$).
+
+\begin{equation}
+	\label{eq:r_psi}
+	r(\psi) = r_0 \times \exp \left(\sum_{n=1}^4 k_n (\psi / \psi_\text{end})^n\right)
+\end{equation}
+
+Coefficients $k_n$ are not explicitly used as function parameters, but instead are derived from parameters that are more convenient for use. Parameters include the coordinates of the beginning of the arm $(r_0, \varphi_0)$, and the coordinates of its end $(r_\text{end}, \varphi_\text{end})$. These parameters also define the number of spiral revolutions and the winding direction. For example, if $\varphi_0 = 30^\circ,~\varphi_\text{end} = -510^\circ$, than spiral winds clockwise and makes one and a half revolution. If $\varphi_0 = 90^\circ,~\varphi_\text{end} = 450^\circ$, than spiral winds counterclockwise and makes one revolution.
+
+For $\psi$ coordinate, indices are used in the same way as for $\varphi$, for example $\psi_\text{end}$ is a $\psi$ coordinate where $\varphi = \varphi_\text{end}$.
+
+The function also includes parameters $m_2, m_3, m_4$ which define the deviation of $r(\psi)$ from the logarithmic spiral.
+
+\subsubsection{$k_n$ coefficients}
+$k_n$ coefficients are derived from the following:
+\begin{equation}
+\left\{\begin{array}{l}
+	k_1 = m_1 - m_2 + m_3 - m_4 \\
+	k_2 = m_2 - 3 m_3 + 6 m_4 \\
+	k_3 = 2 m_3 - 10 m_4 \\
+	k_4 = 5 m_4
+\end{array}\right.\
+\end{equation}
+where $m_1 = \ln{(r_\text{end} / r_0)}$.
+
+\subsubsection{Motivation of using $m_{2 \ldots 4}$ instead of $k_n$}
+There is a number of reasons why $k_n$ coefficients are not used as function parameters, but derived from $m_{2 \ldots 4}$ as above.
+\begin{itemize}
+	\item At first, when $m_{2 \ldots 4}$ coefficients are used as parameters, spiral arm passes through the points $(r_0, \varphi_0)$ and $(r_\text{end}, \varphi_\text{end})$ regardless of $m_{2 \ldots 4}$ values, and $k_n$ coefficients are not independent from each other.
+	\item Parameters $m_{2 \ldots 4}$ are closely tied with the Legendre polynomial expansion coefficients for the pitch angle (Eq.~\ref{eq:mu_psi}). Therefore, each of the coefficients $m_{2 \ldots 4}$ represents the deviation of spiral arm shape from the logarithmic spiral, and coefficients make deviations mostly independent from each other because Legendre polynomials are orthogonal. If we would use $k_n$ as function parameters, it would be some degree of degeneracy between them, because the increase of all $k_n$ coefficients increases the pitch angle of the spiral arm, and for $k_{2 \ldots 4}$ the increase is also stronger for the end of the arm. 
+\end{itemize}
+
+The influence of $m_{2 \ldots 4}$ coefficients on the spiral arm shape is shown on Fig.~\ref{fig:Coeffs}.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.95\linewidth]{"pictures/coeffs_illustration"}
+	\caption{The influence of $m_{2 \ldots 4}$ coefficients on the spiral arm shape. If all coefficients are equal to zero, the spiral is logarithmic.}
+	\label{fig:Coeffs}
+\end{figure}
+
+
+\subsubsection{Pitch angle}
+Spiral arms in our model can have variable pitch angles. Pitch angle $\mu$ at the winding angle $\psi$ is counted as following:
+
+\begin{equation}
+	\label{eq:mu_psi}
+	\mu(\psi) = \arctan \left(\sum_{n=1}^4 n k_n \psi^{n - 1} / \psi_\text{end}^n\right).
+\end{equation}
+
+Average pitch angle $\langle\mu\rangle$ over any $\psi$ range can be found as an arctangent of the slope coefficient of the linear approximation of $\log r(\psi)$.
+
+\subsubsection{Varieties of the function with bending}
+\label{sec:bending}
+The function for which $r(\psi)$ is defined as above is the main function (\verb*|SpiralArm0b|). It produces smoothly-looking spiral arms and $\mu(\psi)$ is a continuous function. We also implement two functions which have one bending (two smooth parts, \verb*|SpiralArm1b|) and two bends (three smooth parts, \verb*|SpiralArm2b|). At the location(s) of bend(s), pitch angle changes abruptly. Formally speaking, $r(\psi)$ for these functions is defined piecewise. Over each smooth part, $r(\psi)$ is a polynomial function, but the coefficients are independent at each smooth part. For once-bent model, there are 2 polynomials of 3rd degree, and for twice-bent there are 3 polynomials of 2nd degree. The location(s) of one (or two) bends $(r_\text{break}, \varphi_\text{break})$ are also included into the list of function parameters. Obviously, adjacent smooth parts meet at the bending position. This is the only difference between the function varieties. \verb*|SpiralArm0b| have 21 parameter, \verb*|SpiralArm1b| has 24 and \verb*|SpiralArm2b| has 25.
+
+\subsection{Distribution of the light along the arm: $I_\parallel$}
+Function $I_\parallel$ describes the light distribution along the ridge-line of the spiral arm, defined by $r(\psi)$. Because the spiral arm is a part of a disc, it's natural to assume that light distribution is exponential with radius at the most part of the spiral arm. To make the beginning and the ending of arm smooth, this exponential decrease is multiplied by the truncation function of $\psi$. The main part and the modification can be separated and be considered independently:
+
+\begin{equation}
+	I_\parallel(r, \psi) = I^\text{sp}_0 \times I_{r \parallel}(r) \times I_{\psi \parallel}(\psi)
+\end{equation}
+
+\begin{equation}
+	I_{r \parallel}(r) = e^{-r/h_s}
+\end{equation}
+
+\begin{equation}
+	I_{\psi \parallel}(\psi) =
+	\left\{\begin{array}{ll}
+		3 \left(\frac{\psi}{\psi_\text{growth}}\right)^2 - 2 \left(\frac{\psi}{\psi_\text{growth}}\right)^3 & 0 \leq \psi < \psi_\text{growth}\\
+		1 & \psi_\text{growth} \leq \psi < \psi_\text{cutoff}\\
+		\frac{\psi_\text{end} - \psi}{\psi_\text{end} - \psi_\text{cutoff}} & \psi_\text{cutoff} \leq \psi \leq 1
+	\end{array}\right.\
+\end{equation}
+
+Above, $I^\text{sp}_0$ is the projected surface brightness from the exponential part at the galaxy centre. Normally, spiral arm does not reach this brightness anywhere because the exponential decrease part of the arm begins from the off galaxy centre, as well as the arm as a whole. Such notation is chosen because it makes $I_{r \parallel}(r)$ have exactly the same form as for exponential disc, with $I^\text{sp}_0$ similar to the disc central surface brightness $I_0$. The value $h_s$ is an exponential scale of the spiral arm, which is again similar to the exponential scale of the disc. Both of these values are parameters of the function.
+
+At $\psi_\text{growth}$, $I_{\psi \parallel}(\psi)$ stops increasing and becomes equal to 1, and therefore $I_\parallel(r, \psi)$ becomes purely exponential with radius. At $\psi_\text{cutoff}$, $I_{\psi \parallel}(\psi)$ starts decreasing from 1, and $I_\parallel(r, \psi)$ overall decreases faster than exponentially with radius, reaching zero at the end. Instead of these angles, normalized values of them (as parts of total arm winding angle) are used as function parameters: $p_\text{growth} = \psi_\text{growth} / \psi_\text{end}$ and $p_\text{cutoff} = \psi_\text{cutoff} / \psi_\text{end}$, for the reasons of universality.
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.95\linewidth]{"pictures/I_parallel_illustration"}
+	\caption{$I_{\psi \parallel}$ function.}
+	\label{fig:I_parallel}
+\end{figure}
+
+On Fig.~\ref{fig:I_parallel}, the shape of $I_{\psi \parallel}$ is shown. Growth part smoothly departs from zero and arrives to 1 to make the beginning of the arm and transition to exponential part look not sharp.
+
+\subsection{Distribution of the light across the arm: $I_\bot$}
+
+Distribution of the light across the arm is defined by the function $I_\bot$ which in its form is similar to asymmetric Sersic function. Spiral arm can be asymmetric and its width can vary. $I_\bot$ depends on two parameters: $\rho = r - r(\psi)$ and $\psi$. Therefore, $\rho$ is a radial distance from the point to the ridge-line of the spiral arm.
+
+\begin{equation}
+	I_\bot^\text{in/out}(\rho, \psi) = \exp \left(-\ln(2) \times \left( \frac{|\rho|}{w_\text{loc}^\text{in/out}(\psi)} \right)^{\frac{1}{n^\text{in/out}}} \right)
+\end{equation}
+
+A few clarifications:
+\begin{itemize}
+	\item $w_\text{loc}^\text{in/out}(\psi)$ is a HWHM\footnote{HWHM (half-width at half maximum) is a distance from the center to the location where the intensity equals half of peak intensity} of the arm in a radial direction, which dependence of $\psi$ is described below, $n^\text{in/out}$ is a Sersic index defining the light distribution in the arm.
+	\item
+	Indices $^\text{in}$ and $^\text{out}$ denote, respectively, inner part of the arm relative to ridge-line of the arm ($\rho < 0$), and outer ($\rho > 0$). Inner and outer Sersic indices $n^\text{in}$ and $n^\text{out}$ are independent from each other, as well as widths $w_\text{loc}^\text{in}$ and $w_\text{loc}^\text{out}$.
+	\item The function in its form is similar to Sersic function, but there is one important difference: instead of $b_n$ depending on $n$, the constant $\ln(2)$ stays in the exponent. This leads to $w_\text{loc}^\text{in/out}(\psi)$ being not an effective radius containing a half of spiral arm luminosity\footnote{Actually, if $b_n$ is taken from a traditional form of Sersic function, the value that is considered to be an effective radius in common 2D Sersic profile will encircle much more than a half of light, depending on $n$. For typical $n$ of spiral arms in the range of $0.5 \ldots 1$, this fraction equals nearly 80\%.} but a HWHM. It is more convenient to use such definition in practice.
+\end{itemize}
+
+Let $w_\text{loc}^\text{in/out}(\psi)$ be called the local inner/outer half-width. The sum of inner and outer will be called the local width: $w_\text{loc} = w_\text{loc}^\text{in} + w_\text{loc}^\text{out}$. Parameters of the function include the average width $w$, asymmetry $A$ and the inner and outer widening parameters $\gamma^\text{in/out}$. Inner and outer half-width are derived from the parameters in the following way:
+
+\begin{equation}
+	w_\text{loc}^\text{in/out}(\psi) = w \frac{1 \mp A}{2} \times \exp\left(\gamma_\text{in/out} \left(\frac{\psi}{\psi_\text{end}} - 0.5\right)\right)
+\end{equation}
+
+Despite looking complicated, all these parameters have clear physical interpretation. The average width $w$ is the local width at the middle of the arm in terms of $\psi$, formally speaking $w = w_\text{loc}(\psi_\text{end} / 2)$. Asymmetry $A$ is a measure of how outer part is wider than the inner, again at the middle of the arm by $\psi$. $A$ can take values from $-1$ (outer half-width equals zero) to 1 (inner half-width is zero), and $A = 0$ means that local inner half-width equals outer at $\psi_\text{end} / 2$. Finally, inner and outer widening parameters $\gamma^\text{in/out}$ define the ratio between the local inner/outer half-width at the ending and at the beginning of the arm, which are $e^{\gamma^\text{in}}$ and $e^{\gamma^\text{out}}$ for the inner and outer parts, respectively. Positive values indicate that arm width increases outwards, whereas negative indicate decrease. If widening parameter equals zero, the half-width is constant.
+
+\subsection{Model parameters list}
+\begin{itemize}
+	\item X0, Y0, PA, ell --- galactic center position and plane orientation (similar to other IMFIT components);
+	\item $r_0, \varphi_0$ --- spiral arm beginning position in polar coordinates, counted from the PA direction;
+	\item $r_\text{end}, \varphi_\text{end}$ --- spiral arm ending position in polar coordinates;
+	\item $m_2, m_3, m_4$ --- coefficients describing the deviation of spiral arm from pure logarighmic spiral shape (which is achieved when these coefficients are equal to zero); usually, the absolute values of them are in order of a few;
+	\item $I^\text{sp}_0$ --- surface brightness projected to the galaxy center from the exponential decline part of the arm;
+	\item $p_\text{growth}$ --- part of the arm (in terms of $\psi$) where growth from zero to the beginning of exponential part occurs;
+	\item $h_s$ --- radial exponential scale of spiral arm, which is similar to disc;
+	\item $p_\text{cutoff}$ --- part of the arm (in terms of $\psi$) where decrease from the ending of exponential part to zero occurs;
+	\item $w$ --- arm width at the middle (in terms of $\psi$);
+	\item $A$ --- spiral arm asymmetry at the middle (in terms of $\psi$, $A$ takes values from $-1$ to 1, and 0 indicates symmetry);
+	\item $n^\text{in}, n^\text{out}$ --- inner and outer Sersic index of the perpendicular profile of the spiral arm
+	\item $\gamma^\text{in}, \gamma^\text{out}$ --- inner and outer widening coefficients (inner/outer half-widths at the ending of arm are by a factor of $e^{\gamma^\text{in}}$ and $e^{\gamma^\text{out}}$ greater than inner/outer half-widths at the beginning, respectively)
+\end{itemize}
+
+
+
+\end{document}

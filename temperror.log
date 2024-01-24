@@ -34,3 +34,21 @@ g++: error: test_runner_mpfit.cpp: No such file or directory
 g++: error: test_runner_solver_results.cpp: No such file or directory
 ./run_unittest_utilities.sh: line 13: /usr/local/cxxtest-4.4/bin/cxxtestgen: No such file or directory
 g++: error: test_runner_utilities.cpp: No such file or directory
+./run_unittest_add_functions.sh: line 14: /usr/local/cxxtest-4.4/bin/cxxtestgen: No such file or directory
+g++: error: test_runner_add_functions.cpp: No such file or directory
+./run_unittest_commandlineparser.sh: line 13: /usr/local/cxxtest-4.4/bin/cxxtestgen: No such file or directory
+g++: error: test_runner_cmparser.cpp: No such file or directory
+./run_unittest_configfileparser.sh: line 13: /usr/local/cxxtest-4.4/bin/cxxtestgen: No such file or directory
+g++: error: test_runner_config.cpp: No such file or directory
+./run_unittest_downsample.sh: line 13: /usr/local/cxxtest-4.4/bin/cxxtestgen: No such file or directory
+g++: error: test_runner_downsample.cpp: No such file or directory
+./run_unittest_getimages.sh: line 13: /usr/local/cxxtest-4.4/bin/cxxtestgen: No such file or directory
+g++: error: test_runner_getimages.cpp: No such file or directory
+./run_unittest_imageio.sh: line 13: /usr/local/cxxtest-4.4/bin/cxxtestgen: No such file or directory
+g++: error: test_runner_imageio.cpp: No such file or directory
+./run_unittest_mpfit.sh: line 13: /usr/local/cxxtest-4.4/bin/cxxtestgen: No such file or directory
+g++: error: test_runner_mpfit.cpp: No such file or directory
+./run_unittest_solverresults.sh: line 13: /usr/local/cxxtest-4.4/bin/cxxtestgen: No such file or directory
+g++: error: test_runner_solver_results.cpp: No such file or directory
+./run_unittest_utilities.sh: line 13: /usr/local/cxxtest-4.4/bin/cxxtestgen: No such file or directory
+g++: error: test_runner_utilities.cpp: No such file or directory

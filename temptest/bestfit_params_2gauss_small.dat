@@ -1,5 +1,5 @@
 # Best-fit model results for imfit 1.8.0 (OpenMP-enabled)
-# Generated on Tue Nov  1 21:00:00 2022 by the following command:
+# Generated on Sun Jun 11 02:34:56 2023 by the following command:
 #    ./imfit -c tests/imfit_reference/config_imfit_2gauss_small.dat tests/testimage_2gauss_psf.fits --nm --save-params=temptest/bestfit_params_2gauss_small.dat
 
 # Results of fit:

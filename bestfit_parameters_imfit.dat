@@ -1,5 +1,5 @@
 # Best-fit model results for imfit 1.8.0 (OpenMP-enabled)
-# Generated on Tue Nov  1 21:00:00 2022 by the following command:
+# Generated on Sun Jun 11 02:34:57 2023 by the following command:
 #    ./imfit -c tests/imfit_reference/config_imfit_ptsource.dat tests/psf_moffat_fwhm2.fits --psf=tests/psf_moffat_fwhm2_35x35.fits
 
 # Results of fit:

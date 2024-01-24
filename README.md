@@ -1,4 +1,3 @@
-This project is a modification of IMFIT ([http://www.mpe.mpg.de/~erwin/code/imfit/](http://www.mpe.mpg.de/~erwin/code/imfit/))
-with added models of spiral arms. Some examples and documentation
-for spiral arm models are provided in examples/Spiral_arms.
-
+This project is a modification of IMFIT ([http://www.mpe.mpg.de/~erwin/code/imfit/](http://www.mpe.mpg.de/~erwin/code/imfit/)) with added models of spiral arms. The only difference from basic IMFIT 1.9.0 is that some models of spiral arms are implemented, and all other features remain the same.
+In particular, this package has exactly the same dependencies as basic IMFIT, and the installation process is also has no differences (the instructions from the basic IMFIT can be found at docs/imfit_howto.pdf). This package do not require basic IMFIT to be installed.
+The documentation for added spiral arm models is provided at "docs_spirals/model_description.pdf".

@@ -1,5 +1,5 @@
 # Best-fit model results for imfit 1.8.0 (OpenMP-enabled)
-# Generated on Tue Nov  1 20:59:58 2022 by the following command:
+# Generated on Sun Jun 11 02:34:55 2023 by the following command:
 #    ./imfit tests/ic3478rss_64x64.fits -c tests/imfit_reference/imfit_config_ic3478_64x64b.dat --seed 10 --bootstrap 5 --save-bootstrap temptest/temp_bootstrap_output.dat
 #
 #

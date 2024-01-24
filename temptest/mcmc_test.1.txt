@@ -1,5 +1,5 @@
 # Markov chain Monte Carlo output from imfit-mcmc 1.8.0 (OpenMP-enabled)
-# Generated on Tue Nov  1 21:00:03 2022 by the following command:
+# Generated on Sun Jun 11 02:35:00 2023 by the following command:
 #    ./imfit-mcmc tests/faintstar.fits -c tests/imfit-mcmc_reference/config_imfit_faintstar.dat --no-subsampling --seed=7 -o temptest/mcmc_test
 #
 # Model definition:

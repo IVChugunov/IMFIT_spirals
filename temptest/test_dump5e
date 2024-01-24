@@ -70,6 +70,6 @@ r_e = 58.0709  +3.24553, -1.56195    [56.509 -- 61.3164, 2.40374];  (58.3155 +/-
 Bootstrap-resampling output saved to file "temptest/temp_bootstrap_output2.dat".
 Saving best-fit parameters in file "bestfit_parameters_imfit.dat"
 
-(Elapsed time: 0.141866 sec for fit, 0.164815 for bootstrap, 0.311015 sec total)
+(Elapsed time: 0.088237 sec for fit, 0.145502 for bootstrap, 0.237480 sec total)
 Done!
 
