@@ -3,6 +3,13 @@ This project is a modification of [IMFIT](http://www.mpe.mpg.de/~erwin/code/imfi
 
 In particular, this package has exactly the same dependencies as basic IMFIT, and the installation process is also has no differences (the instructions from the basic IMFIT can be found at docs/imfit_howto.pdf). This package do not require basic IMFIT to be installed.
 
+# This version
+This branch contains the second model of spiral arms created by our group (Beta), as a result of some improvements compared to [Alpha](https://github.com/IVChugunov/IMFIT_spirals/tree/Alpha). Now we consider Beta version obsolete and do not plan using it anymore; our current version is slightly different (see [main branch](https://github.com/IVChugunov/IMFIT_spirals/tree/main)). Nevertheless, we established a separate branch for this version because it was used in some of our papers:
+* [Chugunov et al., 2025](https://ui.adsabs.harvard.edu/abs/2025PASA...42...29C/abstract) (in particular, models in [the corresponding repository](https://github.com/IVChugunov/Distant_spirals_decomposition) need this version)
+* [Kostiuk et al., 2025](https://ui.adsabs.harvard.edu/abs/2025Galax..13...27K/abstract)
+* [Marchuk et al., 2025](https://ui.adsabs.harvard.edu/abs/2025Galax..13...39M/abstract)
+
+
 # Spiral arms model
 The most comprehensive documentation for the added spiral arm models is provided at [docs_spirals/model_description.pdf](docs_spirals/model_description.pdf).
 
@@ -20,3 +27,4 @@ The basic model is `SpiralArm0b`. This function produces 2D light distribution i
 * `w_asymm`: spiral arm asymmetry at the middle point. [Dimensionless; reasonable values are from -1 to 1, and 0 indicates symmetry].
 *	`n_out`, `n_in`: outer and inner Sersic index of the perpendicular profile of the spiral arm. [Dimensionless; reasonable values are positive and less or of the order of unity].
 *	`gamma_out`, `gamma_in` --- outer and inner widening coefficients (inner/outer half-widths at the ending of arm are by a factor of exp(`gamma_in`) and exp(`gamma_out`) greater than inner/outer half-widths at the beginning, respectively). [Dimensionless; reasonable values are less or of the order of unity; both 0 indicate constant width, negative indicates decreasing width].
+
