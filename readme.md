@@ -7,21 +7,21 @@ In particular, this package has exactly the same dependencies as basic IMFIT, an
 
 Here we provide a collection of model images using our function of spiral arm.
 
-![](docs_spirals/images_readme/S4G_NGC5427.png)
+![](docs_spirals/images_readme/S4G_NGC5247.png)
 *NGC 5247 and two models: classical (top) and with spiral arms (bottom), and their relative residuals. From [Chugunov et al. (2024)](https://ui.adsabs.harvard.edu/abs/2024MNRAS.527.9605C/abstract)*
 
 ![](docs_spirals/images_readme/CEERS+JADES_mosaic.png)
 *A mosaic containing images, models and relative residuals for 33 distant galaxies by JWST from [Chugunov et al. (2025a)](https://ui.adsabs.harvard.edu/abs/2025PASA...42...29C/abstract)*
 
 ![](docs_spirals/images_readme/Model_noise_example.png)
-*A galaxy from COSMOS field (left); its photometric model including spiral arms and multiple clumps (simple Gaussians) with added noise (work in progress)*
+*A galaxy from COSMOS field (left); its photometric model including spiral arms and multiple clumps (simple Gaussians) with added noise (right); work in progress*
 
 
 # Spiral arms model
 Our model produces 2D light distribution in the individual spiral arm. Produced spiral arms may have variable pitch angle, variable width and asymmetric perpendicular profile. The most comprehensive documentation for the added spiral arm models is provided at [docs_spirals/model_description.pdf](docs_spirals/model_description.pdf). The properties of model are also described in [Chugunov et al., 2025b](https://ui.adsabs.harvard.edu/abs/2025Galax..13...44C/abstract), but the documentation contains more technical details and describes all varieties of the function implementation for convenient use.
 
-![](docs_spirals/images_readme/CEERS+JADES_mosaic.png)
-*A schematic illustration of some properties of our spiral arm model. [Chugunov et al. (2025b)](https://ui.adsabs.harvard.edu/abs/2025Galax..13...44C/abstract)*
+![](docs_spirals/images_readme/Model_structure.png)
+*A schematic illustration of some properties of our spiral arm model. From [Chugunov et al. (2025b)](https://ui.adsabs.harvard.edu/abs/2025Galax..13...44C/abstract)*
 
 ## List of parameters
 
@@ -49,5 +49,6 @@ Thus, we consider models from our first works to be obsolete and do not plan (an
   * [Chugunov et al., 2025a](https://ui.adsabs.harvard.edu/abs/2025PASA...42...29C/abstract) (in particular, models in [the corresponding repository](https://github.com/IVChugunov/Distant_spirals_decomposition) need this version)
   * [Kostiuk et al., 2025](https://ui.adsabs.harvard.edu/abs/2025Galax..13...27K/abstract)
   * [Marchuk et al., 2025](https://ui.adsabs.harvard.edu/abs/2025Galax..13...39M/abstract)
+
 
 * [main](https://github.com/IVChugunov/IMFIT_spirals/tree/main) branch contains our final version.
