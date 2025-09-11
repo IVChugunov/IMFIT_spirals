@@ -34,17 +34,18 @@ public:
 
 
 protected:
-    double GetBrightness(double psi, double r);
+    double GetBrightness(double r, double psi);
 
-    double GetNormalBrightness(double psi, double h);
+    double GetParallelBrightness(double r_spiral, double psi);
+
+    double GetNormalBrightness(double r, double rho, double psi);
 
     double GetNearestCoordinates(double r, double psi);
 
     double GetRadius(double psi);
 private:
     double x0, y0, PA, ell, r_0, phi_0, r_break_1, phi_break_1, r_end, phi_end, mu_a_2, mu_a_3, mu_b_2, mu_b_3,
-           I_0, part_growth, h_s, part_cutoff, width, w_asymm, n_out, n_in, gamma_out, gamma_in,
+           I_0, part_growth, ih_s, part_cutoff, w_zp, w_i,
            q, cosPA, sinPA, is_clockwise, m_phi_0, psi_break_1, psi_end, psi_growth, psi_cutoff,
-           mu_a_1, mu_b_1, m_a_1, m_a_2, m_a_3, m_b_1, m_b_2, m_b_3,
-           n_out_inv, n_in_inv, bn, w_out, w_in;
+           mu_a_1, mu_b_1, m_a_1, m_a_2, m_a_3, m_b_1, m_b_2, m_b_3, bn;
 };

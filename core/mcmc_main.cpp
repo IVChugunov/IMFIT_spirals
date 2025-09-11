@@ -11,7 +11,7 @@
  *    24 October 2016: Created as modification of imfit_main.cpp.
 */
 
-// Copyright 2009--2020 by Peter Erwin.
+// Copyright 2009--2022 by Peter Erwin.
 // 
 // This file is part of Imfit.
 // 
@@ -57,6 +57,7 @@
 #include "config_file_parser.h"
 #include "estimate_memory.h"
 #include "sample_configs.h"
+#include "count_cpu_cores.h"
 
 // MCMC code from cdream
 #include "dream_params.h"
@@ -79,9 +80,9 @@ const string  LOG_FILENAME = "log_imfit-mcmc.txt";
 
 
 #ifdef USE_OPENMP
-#define VERSION_STRING      "1.8.0 (OpenMP-enabled)"
+#define VERSION_STRING      "1.9.0 (OpenMP-enabled)"
 #else
-#define VERSION_STRING      "1.8.0"
+#define VERSION_STRING      "1.9.0"
 #endif
 
 
@@ -130,7 +131,7 @@ int main(int argc, char *argv[])
   vector<double>  parameterList;
   vector<mp_par>  parameterInfo;
   vector<int>  FunctionSetIndices;
-  vector< map<string, string> > optionalParamsMap;
+  vector< map<string, string> > optionalParams;
   bool  paramLimitsExist = false;
   int  status;
   vector<string>  imageCommentsList;
@@ -152,12 +153,12 @@ int main(int argc, char *argv[])
 
  
   // Define default options, then process the command line
-  // Use a pointer to OptionsBase so we can use it in calls to SetupModelImage
-//   commandOpts = new MCMCOptions();
-  // Use a pointer to MCMCOptions so we can access all the extra, imfit-mcmc-specific
-  // data members
-//   options = (MCMCOptions *)commandOpts;
   options = make_shared<MCMCOptions>();
+  // Set maximum number of threads = number of hardware cores by default
+  // (user can still override this with --max-threads option)
+  options->maxThreads = GetPhysicalCoreCount();
+  options->maxThreadsSet = true;
+  /* Process command line and parse config file: */
 
   ProcessInput(argc, argv, options);
 
@@ -173,7 +174,7 @@ int main(int argc, char *argv[])
   // Read configuration file, parse & process user-supplied (non-function-related) values
   status = ReadConfigFile(options->configFileName, true, functionList, functionLabelList,
   							parameterList, parameterInfo, FunctionSetIndices, 
-  							paramLimitsExist, userConfigOptions);
+  							paramLimitsExist, userConfigOptions, optionalParams);
   if (status != 0) {
     fprintf(stderr, "\n*** ERROR: Failure reading configuration file!\n\n");
     return -1;
@@ -244,7 +245,7 @@ int main(int argc, char *argv[])
 
   // Add functions to the model object
   status = AddFunctions(theModel, functionList, functionLabelList, FunctionSetIndices, 
-  						options->subsamplingFlag, options->verbose, optionalParamsMap);
+  						options->subsamplingFlag, options->verbose, optionalParams);
   if (status < 0) {
   	fprintf(stderr, "*** ERROR: Failure in AddFunctions!\n\n");
   	exit(-1);

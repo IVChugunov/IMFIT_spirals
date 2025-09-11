@@ -8,7 +8,7 @@
  *
  */
 
-// Copyright 2010--2020 by Peter Erwin.
+// Copyright 2010--2022 by Peter Erwin.
 // 
 // This file is part of Imfit.
 // 
@@ -55,11 +55,6 @@
 #include "func_ferrersbar2d.h"
 #include "func_flatsky.h"
 #include "func_tilted-sky-plane.h"
-#include "func_spiral.h"
-#include "func_spiral_broken.h"
-#include "func_spiral_0b.h"
-#include "func_spiral_1b.h"
-#include "func_spiral_2b.h"
 // modules requiring GSL:
 //#ifndef NO_GSL
 #include "func_edge-on-disk.h"
@@ -68,6 +63,14 @@
 #include "func_gaussianring3d.h"
 #include "func_ferrersbar3d.h"
 #include "func_pointsource.h"
+#include "func_pointsource-rot.h"
+#include "func_spiral_spur.h"
+#include "func_spiral.h"
+#include "func_spiral_1b.h"
+#include "func_spiral_2b.h"
+#include "func_spiral_full.h"
+#include "func_spiral_full_1b.h"
+#include "func_spiral_full_2b.h"
 //#endif
 
 // ADD INCLUDE FILE FOR NEW FUNCTIONS HERE
@@ -82,12 +85,19 @@
 #include "func_broken-exp-bar.h"
 #include "func_brokenexpbar3d.h"
 #include "func_boxytest3d.h"
+#include "func_boxytest3d2.h"
+#include "func_gauss_extraparams.h"
+#include "func_flatbar3d.h"
 #include "func_edge-on-disk_n4762.h"
 #include "func_edge-on-disk_n4762v2.h"
+#include "func_logspiral_exp.h"
+#include "func_logspiral_brokenexp.h"
 #include "func_logspiral.h"
 #include "func_logspiral2.h"
+#include "func_logspiral3.h"
 #include "func_logspiral_gauss.h"
-#include "func_nan.h"
+#include "func_logspiral_arc.h"
+#include "func_polynomial_d1.h"
 #include "func_expdisk3d_trunc.h"
 #include "func_triaxbar3d.h"
 #include "func_triaxbar3d_sq.h"
@@ -101,6 +111,8 @@
 //#include "func_gaussian-ring-az2.h"
 #include "func_lorentzian-ring.h"
 #include "func_n4608disk.h"
+#include "func_nan.h"
+#include "func_simple-checkerboard.h"
 #endif
 
 // extra functions useful for e.g. unit tests
@@ -167,21 +179,6 @@ void PopulateFactoryMap( map<string, factory*>& input_factory_map )
   CoreSersic::GetClassShortName(classFuncName);
   input_factory_map[classFuncName] = new funcobj_factory<CoreSersic>();
   
-  SpiralBranch::GetClassShortName(classFuncName);
-  input_factory_map[classFuncName] = new funcobj_factory<SpiralBranch>();
-  
-  SpiralBranchBroken::GetClassShortName(classFuncName);
-  input_factory_map[classFuncName] = new funcobj_factory<SpiralBranchBroken>();
-
-  SpiralArm0b::GetClassShortName(classFuncName);
-  input_factory_map[classFuncName] = new funcobj_factory<SpiralArm0b>();
-  
-  SpiralArm1b::GetClassShortName(classFuncName);
-  input_factory_map[classFuncName] = new funcobj_factory<SpiralArm1b>();
-  
-  SpiralArm2b::GetClassShortName(classFuncName);
-  input_factory_map[classFuncName] = new funcobj_factory<SpiralArm2b>();
-
   GenExponential::GetClassShortName(classFuncName);
   input_factory_map[classFuncName] = new funcobj_factory<GenExponential>();
   
@@ -249,6 +246,30 @@ void PopulateFactoryMap( map<string, factory*>& input_factory_map )
 
   PointSource::GetClassShortName(classFuncName);
   input_factory_map[classFuncName] = new funcobj_factory<PointSource>();
+
+  PointSourceRot::GetClassShortName(classFuncName);
+  input_factory_map[classFuncName] = new funcobj_factory<PointSourceRot>();
+
+  SpiralSpur::GetClassShortName(classFuncName);
+  input_factory_map[classFuncName] = new funcobj_factory<SpiralSpur>();
+
+  SpiralArm::GetClassShortName(classFuncName);
+  input_factory_map[classFuncName] = new funcobj_factory<SpiralArm>();
+
+  SpiralArm1b::GetClassShortName(classFuncName);
+  input_factory_map[classFuncName] = new funcobj_factory<SpiralArm1b>();
+
+  SpiralArm2b::GetClassShortName(classFuncName);
+  input_factory_map[classFuncName] = new funcobj_factory<SpiralArm2b>();
+
+  SpiralArmFull::GetClassShortName(classFuncName);
+  input_factory_map[classFuncName] = new funcobj_factory<SpiralArmFull>();
+
+  SpiralArmFull1b::GetClassShortName(classFuncName);
+  input_factory_map[classFuncName] = new funcobj_factory<SpiralArmFull1b>();
+
+  SpiralArmFull2b::GetClassShortName(classFuncName);
+  input_factory_map[classFuncName] = new funcobj_factory<SpiralArmFull2b>();
 //#endif
 
 // ADD CODE FOR NEW FUNCTIONS HERE
@@ -270,6 +291,9 @@ void PopulateFactoryMap( map<string, factory*>& input_factory_map )
   BoxyTest3D::GetClassShortName(classFuncName);
   input_factory_map[classFuncName] = new funcobj_factory<BoxyTest3D>();
 
+  BoxyTest3D2::GetClassShortName(classFuncName);
+  input_factory_map[classFuncName] = new funcobj_factory<BoxyTest3D2>();
+
   ExpDisk3D_PerfectTrunc::GetClassShortName(classFuncName);
   input_factory_map[classFuncName] = new funcobj_factory<ExpDisk3D_PerfectTrunc>();
 
@@ -280,17 +304,37 @@ void PopulateFactoryMap( map<string, factory*>& input_factory_map )
   EdgeOnDiskN4762v2::GetClassShortName(classFuncName);
   input_factory_map[classFuncName] = new funcobj_factory<EdgeOnDiskN4762v2>();
 
+  FlatBar3D::GetClassShortName(classFuncName);
+  input_factory_map[classFuncName] = new funcobj_factory<FlatBar3D>();
+
+  GaussianExtraParams::GetClassShortName(classFuncName);
+  input_factory_map[classFuncName] = new funcobj_factory<GaussianExtraParams>();
+
+  // This is potentially ready to use
+  LogSpiralExp::GetClassShortName(classFuncName);
+  input_factory_map[classFuncName] = new funcobj_factory<LogSpiralExp>();
+
+  LogSpiralBrokenExp::GetClassShortName(classFuncName);
+  input_factory_map[classFuncName] = new funcobj_factory<LogSpiralBrokenExp>();
+
+  // The following "LogSpiral" functions are past experimental versions
   LogSpiral::GetClassShortName(classFuncName);
   input_factory_map[classFuncName] = new funcobj_factory<LogSpiral>();
 
   LogSpiral2::GetClassShortName(classFuncName);
   input_factory_map[classFuncName] = new funcobj_factory<LogSpiral2>();
 
+  LogSpiral3::GetClassShortName(classFuncName);
+  input_factory_map[classFuncName] = new funcobj_factory<LogSpiral3>();
+
   LogSpiralGauss::GetClassShortName(classFuncName);
   input_factory_map[classFuncName] = new funcobj_factory<LogSpiralGauss>();
 
-  NaNFunc::GetClassShortName(classFuncName);
-  input_factory_map[classFuncName] = new funcobj_factory<NaNFunc>();
+  LogSpiralArc::GetClassShortName(classFuncName);
+  input_factory_map[classFuncName] = new funcobj_factory<LogSpiralArc>();
+
+  PolynomialD1::GetClassShortName(classFuncName);
+  input_factory_map[classFuncName] = new funcobj_factory<PolynomialD1>();
 
   TriaxBar3D::GetClassShortName(classFuncName);
   input_factory_map[classFuncName] = new funcobj_factory<TriaxBar3D>();
@@ -327,7 +371,13 @@ void PopulateFactoryMap( map<string, factory*>& input_factory_map )
 
   N4608Disk::GetClassShortName(classFuncName);
   input_factory_map[classFuncName] = new funcobj_factory<N4608Disk>();
-  
+
+  NaNFunc::GetClassShortName(classFuncName);
+  input_factory_map[classFuncName] = new funcobj_factory<NaNFunc>();
+
+  SimpleCheckerboard::GetClassShortName(classFuncName);
+  input_factory_map[classFuncName] = new funcobj_factory<SimpleCheckerboard>();
+
 #endif
 
 #ifdef USE_TEST_FUNCS
@@ -347,14 +397,14 @@ int AddFunctions( ModelObject *theModel, const vector<string> &functionNameList,
   int  nFunctions = functionNameList.size();
   int  status;
   string  currentName;
-  bool  extraParamsExist = false;
+  bool  extraParamsMayExist = false;
   FunctionObject  *thisFunctionObj;
   map<string, factory*>  factory_map;
 
   PopulateFactoryMap(factory_map);
 
   if (extraParams.size() > 0)
-    extraParamsExist = true;
+    extraParamsMayExist = true;
   
   for (int i = 0; i < nFunctions; i++) {
     currentName = functionNameList[i];
@@ -368,20 +418,26 @@ int AddFunctions( ModelObject *theModel, const vector<string> &functionNameList,
       thisFunctionObj = factory_map[currentName]->create();
       thisFunctionObj->SetLabel(functionLabelList[i]);
       thisFunctionObj->SetSubsampling(subsamplingFlag);
-      if (extraParamsExist) {
-        // specialize the function as requested by user (via config file)
-        if (verboseLevel >= 0)
-          printf("   Setting optional parameter(s) for %s...\n", currentName.c_str());
-        status = thisFunctionObj->SetExtraParams(extraParams[i]);
-        if (status < 0) {
-          fprintf(stderr, "Error attempting to set extra/optional parameters for ");
-          fprintf(stderr, "function \"%s\"\n", thisFunctionObj->GetShortName().c_str());
+      if (extraParamsMayExist) {
+        map<string, string>  extraParamsMap = extraParams[i];
+        if (! extraParamsMap.empty()) {
+          // OK, the user actually specified optional parameters for this function,
+          // so specialize the function as requested
+          if (verboseLevel >= 0)
+            printf("   Setting optional parameter(s) for %s...\n", currentName.c_str());
+          status = thisFunctionObj->SetExtraParams(extraParams[i]);
+          if (status < 0) {
+            fprintf(stderr, "Error attempting to set extra/optional parameters for ");
+            fprintf(stderr, "function \"%s\" (#%d in list)\n", 
+            		thisFunctionObj->GetShortName().c_str(), i + 1);
+            return status;
+          }
         }
       }
       status = theModel->AddFunction(thisFunctionObj);
       if (status < 0) {
-        fprintf(stderr, "Error attempting to add function \"%s\"", 
-        		thisFunctionObj->GetShortName().c_str());
+        fprintf(stderr, "Error attempting to add function \"%s\" (#%d in list)", 
+        		thisFunctionObj->GetShortName().c_str(), i + 1);
         fprintf(stderr, " to ModelObject!\n");
         return status;
       }
@@ -433,7 +489,7 @@ void ListFunctionParameters( )
 {
   
   string  currentName;
-  vector<string>  parameterNameList;
+  vector<string>  parameterNameList, parameterUnitsList;
   FunctionObject  *thisFunctionObj;
   map<string, factory*>  factory_map;
 
@@ -445,9 +501,16 @@ void ListFunctionParameters( )
     currentName = thisFunctionObj->GetShortName();
     printf("\nFUNCTION %s\n", currentName.c_str());
     parameterNameList.clear();
+    parameterUnitsList.clear();
     thisFunctionObj->GetParameterNames(parameterNameList);
-    for (int i = 0; i < (int)parameterNameList.size(); i++)
-      printf("%s\n", parameterNameList[i].c_str());
+    thisFunctionObj->GetParameterUnits(parameterUnitsList);
+    for (int i = 0; i < (int)parameterNameList.size(); i++) {
+      printf("%s", parameterNameList[i].c_str());
+      if (parameterUnitsList[i].empty())
+        printf("\n");
+      else
+        printf("\t\t# %s\n", parameterUnitsList[i].c_str());
+    }
     delete thisFunctionObj;
   }
   printf("\n\n");

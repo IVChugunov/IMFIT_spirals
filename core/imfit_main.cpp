@@ -11,7 +11,7 @@
  *    10 Nov--2 Dec 2009: Early stages of development
 */
 
-// Copyright 2009--2020 by Peter Erwin.
+// Copyright 2009--2022 by Peter Erwin.
 // 
 // This file is part of Imfit.
 // 
@@ -70,8 +70,14 @@
 #include "print_results.h"
 #include "estimate_memory.h"
 #include "sample_configs.h"
+#include "count_cpu_cores.h"
 
 using namespace std;
+
+
+/* ---------------- Quasi-Global Variable Definitions ------------------- */
+
+volatile sig_atomic_t  stopSignal_flag = 0;
 
 
 /* ---------------- Definitions & Constants ----------------------------- */
@@ -85,9 +91,9 @@ static string  kOriginalSkyString = "ORIGINAL_SKY";
 
 
 #ifdef USE_OPENMP
-#define VERSION_STRING      "1.8.0 (OpenMP-enabled)"
+#define VERSION_STRING      "1.9.0 (OpenMP-enabled)"
 #else
-#define VERSION_STRING      "1.8.0"
+#define VERSION_STRING      "1.9.0"
 #endif
 
 
@@ -98,6 +104,7 @@ void ProcessInput( int argc, char *argv[], shared_ptr<ImfitOptions> theOptions )
 bool RequestedFilesPresent( shared_ptr<ImfitOptions> theOptions );
 void HandleConfigFileOptions( configOptions *configFileOptions, 
 								shared_ptr<ImfitOptions> mainOptions );
+void signal_handler( int signal );
 
 
 
@@ -127,8 +134,8 @@ int main(int argc, char *argv[])
   vector<string>  functionLabelList;
   vector<double>  parameterList;
   vector<mp_par>  parameterInfo;
-  vector<int>  FunctionSetIndices;
-  vector< map<string, string> > optionalParamsMap;
+  vector<int>  functionSetIndices;
+  vector< map<string, string> > optionalParams;
   bool  paramLimitsExist = false;
   int  status, fitStatus, nSucessfulIterations;
   SolverResults  resultsFromSolver;
@@ -139,6 +146,7 @@ int main(int argc, char *argv[])
   const std::string  Y0_string("Y0");
   string  progNameVersion = "imfit ";
   vector<string> programHeader;
+  bool  userInterrupted = false;
   FILE  *bootstrapSaveFile_ptr = NULL;
   bool  didBootstrap = false;
   // timing-related
@@ -155,6 +163,11 @@ int main(int argc, char *argv[])
  
   // ** Define default options, then process the command line
   options = make_shared<ImfitOptions>();
+  // Set maximum number of threads = number of hardware cores by default
+  // (user can still override this with --max-threads option)
+  options->maxThreads = GetPhysicalCoreCount();
+  options->maxThreadsSet = true;
+  /* Process command line and parse config file: */
   ProcessInput(argc, argv, options);
 
   // (Appropriate error messages regarding any missing files will be printed
@@ -167,8 +180,8 @@ int main(int argc, char *argv[])
 
   // ** Read configuration file, parse & process user-supplied (non-function-related) values
   status = ReadConfigFile(options->configFileName, true, functionList, functionLabelList,
-  							parameterList, parameterInfo, FunctionSetIndices, 
-  							paramLimitsExist, userConfigOptions);
+  							parameterList, parameterInfo, functionSetIndices, 
+  							paramLimitsExist, userConfigOptions, optionalParams);
   if (status != 0) {
     fprintf(stderr, "\n*** ERROR: Failure reading configuration file!\n\n");
     return -1;
@@ -235,8 +248,8 @@ int main(int argc, char *argv[])
   
 
   // Add functions to the model object
-  status = AddFunctions(theModel, functionList, functionLabelList, FunctionSetIndices, 
-  						options->subsamplingFlag, options->verbose, optionalParamsMap);
+  status = AddFunctions(theModel, functionList, functionLabelList, functionSetIndices, 
+  						options->subsamplingFlag, options->verbose, optionalParams);
   if (status < 0) {
   	fprintf(stderr, "*** ERROR: Failure in AddFunctions!\n\n");
   	exit(-1);
@@ -359,21 +372,27 @@ int main(int argc, char *argv[])
       printf("Poisson MLR statistic:\n");
     else if (options->useModelForErrors)
       printf("chi^2 (model-based errors):\n");
+    else if (options->noiseImagePresent)
+      printf("chi^2 (user-supplied error image):\n");
     else
       printf("chi^2 (data-based errors):\n");
+    // Set signal-handling so Ctrl-C (SIGINT) is intercepted
+    signal(SIGINT, signal_handler);
     gettimeofday(&timer_start_fit, NULL);
     fitStatus = DispatchToSolver(options->solver, nParamsTot, nFreeParams, nPixels_tot, 
     							paramsVect, parameterInfo, theModel, options->ftol, paramLimitsExist, 
     							options->verbose, &resultsFromSolver, options->nloptSolverName,
     							options->rngSeed, options->useLHS);
     gettimeofday(&timer_end_fit, NULL);
+    if (stopSignal_flag == 1)
+      userInterrupted = true;
     							
     PrintResults(paramsVect, theModel, nFreeParams, fitStatus, resultsFromSolver);
   }
 
 
   // ** Optional bootstrap resampling
-  if ((options->doBootstrap) && (options->bootstrapIterations > 0)) {
+  if ((options->doBootstrap) && (options->bootstrapIterations > 0) && (! userInterrupted)) {
     if (options->saveBootstrap) {
       bootstrapSaveFile_ptr = fopen(options->outputBootstrapFileName.c_str(), "w");
       // write general info + best-fitting params as a commented-out header
@@ -403,11 +422,19 @@ int main(int argc, char *argv[])
   // "warnings" and don't immediately exit, since we're close to the end of the program
   // anyway, and the user might just have given us a bad path for one of the output images
   if (options->saveBestFitParams) {
-    printf("Saving best-fit parameters in file \"%s\"\n", options->outputParameterFileName.c_str());
-    SaveParameters(paramsVect, theModel, options->outputParameterFileName, programHeader, 
+    if (! userInterrupted) {
+      printf("Saving best-fit parameters in file \"%s\"\n", options->outputParameterFileName.c_str());
+      SaveParameters(paramsVect, theModel, options->outputParameterFileName, programHeader, 
     						nFreeParams, options->solver, fitStatus, resultsFromSolver);
+    }
+    else {
+      // User interrupted (e.g via Ctrl-C), so save parameters in special file
+       printf("Saving current parameters in file \"%s\"\n", options->interruptedParameterFileName.c_str());
+      SaveParameters(paramsVect, theModel, options->interruptedParameterFileName, programHeader, 
+    						nFreeParams, options->solver, fitStatus, resultsFromSolver);   
+    }
   }
-  if (options->saveModel) {
+  if ((options->saveModel) && (! userInterrupted)) {
     PrepareImageComments(&imageCommentsList, progNameVersion, options->outputParameterFileName,
     					options->psfImagePresent, options->psfFileName, HDR_MODELIMAGE,
     					options->imageFileName);
@@ -419,7 +446,7 @@ int main(int argc, char *argv[])
       				options->outputModelFileName.c_str());
     }
   }
-  if (options->saveResidualImage) {
+  if ((options->saveResidualImage) && (! userInterrupted)) {
     imageCommentsList.clear();
     PrepareImageComments(&imageCommentsList, progNameVersion, options->outputParameterFileName,
     					options->psfImagePresent, options->psfFileName, HDR_RESIDUALIMAGE,
@@ -432,7 +459,7 @@ int main(int argc, char *argv[])
       				options->outputResidualFileName.c_str());
     }
   }
-  if (options->saveWeightImage) {
+  if ((options->saveWeightImage) && (! userInterrupted)) {
     imageCommentsList.clear();
     PrepareImageComments(&imageCommentsList, progNameVersion, options->outputParameterFileName,
     					options->psfImagePresent, options->psfFileName, HDR_WEIGHTIMAGE,
@@ -1029,6 +1056,14 @@ void HandleConfigFileOptions( configOptions *configFileOptions,
     				configFileOptions->optionNames[i].c_str());
     
   }
+}
+
+
+
+void signal_handler( int signal )
+{
+  if (signal == SIGINT)
+    stopSignal_flag = 1;
 }
 
 

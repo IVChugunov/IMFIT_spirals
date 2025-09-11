@@ -15,13 +15,13 @@
 
 #include "function_object.h"
 
-class SpiralBranch : public FunctionObject {
+class SpiralArm : public FunctionObject {
     // the following static constant will be defined/initialized in the .cpp file
     static const char className[];
 
 public:
     // Constructors:
-    SpiralBranch();
+    SpiralArm();
 
     // redefined method/member function:
     void Setup(double params[], int offsetIndex, double xc, double yc);
@@ -34,16 +34,18 @@ public:
 
 
 protected:
-    double GetBrightness(double fi, double r);
+    double GetBrightness(double r, double psi);
 
-    double GetNormalBrightness(double fi, double h);
+    double GetParallelBrightness(double r_spiral, double psi);
 
-    double GetNearestCoordinates(double r, double fi);
+    double GetNormalBrightness(double r, double rho, double psi);
 
-    double GetRadius(double fi);
+    double GetNearestCoordinates(double r, double psi);
+
+    double GetRadius(double psi);
 private:
-    double x0, y0, is_clockwise, PA, inc, r0, fi0, max_bright, bright_decrease, width_increase,
-            outer_width, inner_width, m0, m1, m2, m3, fi_max, n, fi_of_max, kp, mp, maximum, cp,
-            outer_n, inner_n, outer_bn, inner_bn, oinvn, iinvn;
-    double f_fi0;
+    double x0, y0, PA, ell, r_0, phi_0, r_end, phi_end, mu_a_2, mu_a_3, mu_a_4,
+           I_0, part_growth, ih_s, part_cutoff, w_zp, w_i,
+           q, cosPA, sinPA, is_clockwise, m_phi_0, psi_end, psi_growth, psi_cutoff,
+           mu_a_1, m_a_1, m_a_2, m_a_3, m_a_4, bn;
 };

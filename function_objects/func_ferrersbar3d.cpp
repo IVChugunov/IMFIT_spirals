@@ -21,7 +21,7 @@
  *     [v0.1]: 16 Oct 2012: Created (as modification of func_exp3d.cpp.
  */
 
-// Copyright 2012--2020 by Peter Erwin.
+// Copyright 2012--2022 by Peter Erwin.
 // 
 // This file is part of Imfit.
 // 
@@ -59,6 +59,8 @@ using namespace std;
 /* ---------------- Definitions ---------------------------------------- */
 const int   N_PARAMS = 8;
 const char  PARAM_LABELS[][20] = {"PA", "inc", "barPA", "J_0", "R_bar", "q", "q_z", "n"};
+const char  PARAM_UNITS[][30] = {"deg (CCW from +y axis)", "deg", "deg", 
+				"counts/voxel", "pixels", "", "", ""};
 const char  FUNCTION_NAME[] = "FerrersBar3D function";
 const double  DEG2RAD = 0.017453292519943295;
 const int  SUBSAMPLE_R = 10;
@@ -80,17 +82,17 @@ double LuminosityDensity_FerrersBar( double s, void *params );
 
 FerrersBar3D::FerrersBar3D( )
 {
-  string  paramName;
   
   nParams = N_PARAMS;
   functionName = FUNCTION_NAME;
   shortFunctionName = className;
 
-  // Set up the vector of parameter labels
+  // Set up vectors of parameter labels and units
   for (int i = 0; i < nParams; i++) {
-    paramName = PARAM_LABELS[i];
-    parameterLabels.push_back(paramName);
+    parameterLabels.push_back(PARAM_LABELS[i]);
+    parameterUnits.push_back(PARAM_UNITS[i]);
   }
+  parameterUnitsExist = true;
 
   // Stuff related to GSL integration  
   gsl_set_error_handler_off();
@@ -192,7 +194,6 @@ double FerrersBar3D::GetValue( double x, double y )
 
   return totalIntensity;
 }
-
 
 
 

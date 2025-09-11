@@ -4,7 +4,7 @@
 
 /* FILE: print_results.cpp ----------------------------------------- */
 
-// Copyright 2010-2019 by Peter Erwin.
+// Copyright 2010-2022 by Peter Erwin.
 // 
 // This file is part of Imfit.
 // 
@@ -208,8 +208,10 @@ void GetSolverSummary( int status, int solverID, string& outputString )
       outputString += PrintToString("Differential Evolution: status = %d -- ", status);
       if (status == 1)
         outputString += "SUCCESS: Convergence in fit-statistic value";
-      else  // assuming (status == 5)
+      else if (status == 5)
         outputString += "Maximum generation number reached without convergence";
+      else   // assume status = 100 (Ctrl-C)
+        outputString += "Terminated: User interrupt";
       break;
   }
 }

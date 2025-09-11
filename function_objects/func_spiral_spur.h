@@ -1,0 +1,51 @@
+/*   Class interface definition for func_spiral_spur.cpp
+ *
+ *   A class derived from FunctionObject (function_object.h),
+ * which produces the luminosity as a function of radius for an elliptical
+ * component with a broken-exponential profile.
+ *
+ * PARAMETERS:
+ * x0 = xc;   -- center of component (pixels, x)
+ * y0 = yc;   -- center of component (pixels, y)
+ *
+
+ *
+ *
+ */
+
+#include "function_object.h"
+
+class SpiralSpur : public FunctionObject {
+    // the following static constant will be defined/initialized in the .cpp file
+    static const char className[];
+
+public:
+    // Constructors:
+    SpiralSpur();
+
+    // redefined method/member function:
+    void Setup(double params[], int offsetIndex, double xc, double yc);
+
+    double GetValue(double x, double y);
+    // No destructor for now
+
+    // class method for returning official short name of class
+    static void GetClassShortName(string &classname) { classname = className; };
+
+
+protected:
+    double GetBrightness(double r, double psi);
+
+    double GetParallelBrightness(double r_spiral, double psi);
+
+    double GetNormalBrightness(double r, double rho, double psi);
+
+    double GetNearestCoordinates(double r, double psi);
+
+    double GetRadius(double psi);
+private:
+    double x0, y0, PA, ell, r_0, phi_0, r_end, phi_end, mu_a_2,
+           I_0, part_growth, part_cutoff, w_i,
+           q, cosPA, sinPA, is_clockwise, m_phi_0, psi_end, psi_growth, psi_cutoff,
+           mu_a_1, m_a_1, m_a_2, bn;
+};

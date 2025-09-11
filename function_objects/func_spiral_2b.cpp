@@ -14,12 +14,13 @@ using namespace std;
 
 
 /* ---------------- Definitions ---------------------------------------- */
-const int N_PARAMS = 23;
-const char PARAM_LABELS[][30] = {"PA", "ell", "r_0", "phi_0", "r_break_1", "phi_break_1", "r_break_2", "phi_break_2", "r_end", "phi_end", "mu_a_2", "mu_b_2", "mu_c_2",
+const int N_PARAMS = 22;
+const char PARAM_LABELS[][20] = {"PA", "ell", "r_0", "phi_0", "r_break_1", "phi_break_1", "r_break_2", "phi_break_2", "r_end", "phi_end",
+                                 "mu_a_2", "mu_a_3", "mu_b_2", "mu_b_3", "mu_c_2", "mu_c_3",
                                  "I_0", "part_growth", "h_s", "part_cutoff",
-                                 "width", "w_asymm", "n_out", "n_in", "gamma_out", "gamma_in"};
+                                 "w_zp", "w_i"};
 
-const char FUNCTION_NAME[] = "Spiral arm function with 2 breaks";
+const char FUNCTION_NAME[] = "Normal spiral arm function with 2 breaks and extended parameters";
 const double pi = 3.14159265358979323846;
 const double pi2 = 6.28318530718;
 const double DEG2RAD = 0.017453292519943295;
@@ -62,18 +63,17 @@ void SpiralArm2b::Setup(double params[], int offsetIndex, double xc, double yc) 
     r_end = params[8 + offsetIndex];
     phi_end = params[9 + offsetIndex] * DEG2RAD;
     mu_a_2 = params[10 + offsetIndex];
-    mu_b_2 = params[11 + offsetIndex];
-    mu_c_2 = params[12 + offsetIndex];
-    I_0 = params[13 + offsetIndex];
-    part_growth = params[14 + offsetIndex];
-    h_s = params[15 + offsetIndex];
-    part_cutoff = params[16 + offsetIndex];
-    width = params[17 + offsetIndex];
-    w_asymm = params[18 + offsetIndex];
-    n_out = params[19 + offsetIndex];
-    n_in = params[20 + offsetIndex];
-    gamma_out = params[21 + offsetIndex];
-    gamma_in = params[22 + offsetIndex];
+    mu_a_3 = params[11 + offsetIndex];
+    mu_b_2 = params[12 + offsetIndex];
+    mu_b_3 = params[13 + offsetIndex];
+    mu_c_2 = params[14 + offsetIndex];
+    mu_c_3 = params[15 + offsetIndex];
+    I_0 = params[16 + offsetIndex];
+    part_growth = params[17 + offsetIndex];
+    ih_s = params[18 + offsetIndex];
+    part_cutoff = params[19 + offsetIndex];
+    w_zp = params[20 + offsetIndex];
+    w_i = params[21 + offsetIndex];
     
     // pre-compute useful things for this round of invoking the function
     q = 1.0 - ell;
@@ -108,18 +108,16 @@ void SpiralArm2b::Setup(double params[], int offsetIndex, double xc, double yc) 
     mu_b_1 = log(r_break_2 / r_break_1);
     mu_c_1 = log(r_end / r_break_2);
     
-    m_a_1 = mu_a_1 - mu_a_2;
-    m_a_2 = mu_a_2;
-    m_b_1 = mu_b_1 - mu_b_2;
-    m_b_2 = mu_b_2;
-    m_c_1 = mu_c_1 - mu_c_2;
-    m_c_2 = mu_c_2;
+    m_a_1 = mu_a_1 - mu_a_2 + mu_a_3;
+    m_a_2 = mu_a_2 - 3 * mu_a_3;
+    m_a_3 = 2 * mu_a_3;
+    m_b_1 = mu_b_1 - mu_b_2 + mu_b_3;
+    m_b_2 = mu_b_2 - 3 * mu_b_3;
+    m_b_3 = 2 * mu_b_3;
+    m_c_1 = mu_c_1 - mu_c_2 + mu_c_3;
+    m_c_2 = mu_c_2 - 3 * mu_c_3;
+    m_c_3 = 2 * mu_c_3;
     
-    w_out = width * (1 + w_asymm) / 2;
-    w_in = width * (1 - w_asymm) / 2;
-    
-    n_out_inv = 1.0 / n_out;
-    n_in_inv = 1.0 / n_in;
     bn = log(2);
 }
 
@@ -159,52 +157,47 @@ double SpiralArm2b::GetValue(double x, double y) {
         psi_in -= pi2;
 
     double I = 0;
-    I += GetBrightness(psi_in, r);
-    I += GetBrightness(psi_out, r);
+    I += GetBrightness(r, psi_in);
+    I += GetBrightness(r, psi_out);
     return I;
 }
 
 /* ----------------------------- OTHER FUNCTIONS -------------------------------- */
 
-double SpiralArm2b::GetBrightness(double psi, double r) {
+double SpiralArm2b::GetBrightness(double r, double psi) {
     if (psi <= 0 || psi >= psi_end)
         return 0;
 
     double r_spiral = GetRadius(psi);
     double I;
-    I = I_0 * exp(-r_spiral / h_s) * GetNormalBrightness(psi, r - r_spiral);
+    I = I_0 * GetParallelBrightness(r_spiral, psi) * GetNormalBrightness(r_spiral, r - r_spiral, psi);
+
+    return I;
+}
+
+double SpiralArm2b::GetParallelBrightness(double r_spiral, double psi) {
+    double I_par = exp(-r_spiral * ih_s);
+
+    auto smooth = [](double t) {
+        t = std::max(0.0, std::min(1.0, t));
+        return (3.0 * pow(t, 2) - 2.0 * pow(t, 3));
+    };
 
     if (psi < psi_growth) {
-        return I * (3 * pow(psi / psi_growth, 2) - 2 * pow(psi / psi_growth, 3));
-    } else if (psi > psi_end - psi_cutoff) {
-        return I * ((psi_end - psi) / (psi_cutoff));
-    } else
-        return I;
-}
-
-
-double SpiralArm2b::GetNormalBrightness(double psi, double h) {
-    if (psi == 0)
-        return 0;
-    double w = h < 0 ? w_in : w_out;
-    double n_inv = h < 0 ? n_in_inv : n_out_inv;
-    double gamma = h < 0 ? gamma_in : gamma_out;
-    double loc_w = w * exp(gamma * (psi / psi_end - 0.5));
-    return exp(-bn * pow(abs(h) / loc_w, n_inv));
-}
-
-double SpiralArm2b::GetRadius(double psi) {
-    double psi_norm;
-    if (psi >= psi_break_2) {
-        psi_norm = (psi - psi_break_2) / (psi_end - psi_break_2);
-    	return r_break_2 * exp(m_c_1 * psi_norm + m_c_2 * pow(psi_norm, 2));
-    } else if (psi >= psi_break_1) {
-        psi_norm = (psi - psi_break_1) / (psi_break_2 - psi_break_1);
-    	return r_break_1 * exp(m_b_1 * psi_norm + m_b_2 * pow(psi_norm, 2));
-    } else {
-        psi_norm = (psi / psi_break_1);
-    	return r_0 * exp(m_a_1 * psi_norm + m_a_2 * pow(psi_norm, 2));
+        double t = psi / psi_growth;
+        I_par = I_par * smooth(t);
     }
+    if (psi > psi_end - psi_cutoff) {
+        double t = (psi_end - psi) / psi_cutoff;
+        I_par = I_par * smooth(t);
+    }
+
+    return I_par;
+}
+
+double SpiralArm2b::GetNormalBrightness(double r_spiral, double rho, double psi) {
+    double loc_w = abs(((w_i * r_spiral) + w_zp) / 2);
+    return exp(-bn * pow(abs(rho) / loc_w, 2));
 }
 
 double SpiralArm2b::GetNearestCoordinates(double r, double psi) {
@@ -219,6 +212,20 @@ double SpiralArm2b::GetNearestCoordinates(double r, double psi) {
     }
 
     return psi_1;
+}
+
+double SpiralArm2b::GetRadius(double psi) {
+    double psi_norm;
+    if (psi >= psi_break_2) {
+        psi_norm = (psi - psi_break_2) / (psi_end - psi_break_2);
+    	return r_break_2 * exp(m_c_1 * psi_norm + m_c_2 * pow(psi_norm, 2) + m_c_3 * pow(psi_norm, 3));
+    } else if (psi >= psi_break_1) {
+        psi_norm = (psi - psi_break_1) / (psi_break_2 - psi_break_1);
+    	return r_break_1 * exp(m_b_1 * psi_norm + m_b_2 * pow(psi_norm, 2) + m_b_3 * pow(psi_norm, 3));
+    } else {
+        psi_norm = (psi / psi_break_1);
+    	return r_0 * exp(m_a_1 * psi_norm + m_a_2 * pow(psi_norm, 2) + m_a_3 * pow(psi_norm, 3));
+    }
 }
 
 /* END OF FILE: func_spiral_2b.cpp ------------------------------------ */

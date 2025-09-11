@@ -318,24 +318,29 @@ int ModelObject::SetupPsfInterpolation( int interpolationType )
     return -1;
   }
   
+  // the following is definitely needed for bicubic interpolation; not sure what
+  // the limits for lanczos2 or lanczos3 should be
+  if ((nPSFColumns < 4) || (nPSFRows < 4)) {
+    fprintf(stderr, "** ERROR: PSF image is too small for interpolation with PointSource functions!\n");
+    fprintf(stderr, "   (must be at least 4 x 4 pixels in size for GSL bicubic interpolation)\n");
+    return -2;
+  }
+
   switch (interpolationType) {
     case kInterpolator_bicubic:
-      if ((nPSFColumns >= 4) && (nPSFRows >= 4)) {
-        psfInterpolator = new PsfInterpolator_bicubic(localPsfPixels, nPSFColumns, nPSFRows);
-        psfInterpolator_allocated = true;
-      }
-      else {
-        fprintf(stderr, "** ERROR: PSF image is too small for interpolation with PointSource functions!\n");
-        fprintf(stderr, "   (must be at least 4 x 4 pixels in size for GSL bicubic interpolation)\n");
-        return -2;
-      }
+      psfInterpolator = new PsfInterpolator_bicubic(localPsfPixels, nPSFColumns, nPSFRows);
+	  psfInterpolator_allocated = true;
       break;
     case kInterpolator_lanczos2:
-      printf("ERROR: Lanczos2 interpolation not yet implemented!\n");
-      return -2;
+      psfInterpolator = new PsfInterpolator_lanczos2(localPsfPixels, nPSFColumns, nPSFRows);
+      psfInterpolator_allocated = true;
+      break;
     case kInterpolator_lanczos3:
-      printf("ERROR: Lanczos3 interpolation not yet implemented!\n");
-      return -2;
+//       printf("ERROR: Lanczos3 interpolation not yet implemented!\n");
+//       return -2;
+      psfInterpolator = new PsfInterpolator_lanczos3(localPsfPixels, nPSFColumns, nPSFRows);
+      psfInterpolator_allocated = true;
+      break;
   }
   
   return 0;
@@ -823,6 +828,8 @@ int ModelObject::AddPSFVector( long nPixels_psf, int nColumns_psf, int nRows_psf
   nPSFRows = nRows_psf;
   psfConvolver = new Convolver();
   psfConvolver->SetupPSF(psfPixels, nColumns_psf, nRows_psf, normalizePSF);
+//   printf("ModelObject::AddPSFVector -- calling psfConvolver->SetMaxThreads()");
+//   printf("with maxRequestedThreads = %d\n", maxRequestedThreads);
   psfConvolver->SetMaxThreads(maxRequestedThreads);
   doConvolution = true;
   
@@ -1749,7 +1756,7 @@ void ModelObject::GetFunctionLabels( vector<string>& functionLabels )
 
 
 /* ---------------- PUBLIC METHOD: PrintModelParamsToStrings ---------- */
-/// Like PrintModelParams, but appends lines of output as strings to the input
+/// Prints description of model (e.g., best-fit result) as strings to the input
 /// vector of string. 
 /// Optionally, the lower and upper limits defined in parameterInfo are also printed, 
 /// OR associated lower and upper error bounds in errs can be printed.
@@ -1768,6 +1775,10 @@ int ModelObject::PrintModelParamsToStrings( vector<string> &stringVector, double
   int nParamsThisFunc, k;
   int  indexOffset = 0;
   string  funcName, funcLabel, paramName, newLine;
+  bool  thisFuncHasUnits = false;
+  string  unitsPrefix;
+  vector<string>  paramUnits;
+  vector<string>  extraParamLines;
 
   if ((printLimits) && (parameterInfoVect.size() == 0)) {
     fprintf(stderr, "** ERROR: ModelObject::PrintModelParamsToStrings -- printing of parameter limits\n");
@@ -1808,17 +1819,36 @@ int ModelObject::PrintModelParamsToStrings( vector<string> &stringVector, double
       indexOffset += 2;
     }
     
-    // Now print the function and its parameters
-    nParamsThisFunc = paramSizes[n];
+    // Now print the function and its parameters (and units, if they exist)
     funcName = functionObjects[n]->GetShortName();
     funcLabel = functionObjects[n]->GetLabel();
     if (! funcLabel.empty())
       funcLabel = PrintToString("   # LABEL %s", funcLabel.c_str());
+    thisFuncHasUnits = false;
+    if (functionObjects[n]->HasParameterUnits()) {
+      paramUnits.clear();
+      functionObjects[n]->GetParameterUnits(paramUnits);
+      thisFuncHasUnits = true;
+    }
     stringVector.push_back(PrintToString("%sFUNCTION %s%s\n", prefix, funcName.c_str(),
     						funcLabel.c_str()));
+    						
+    // print optional parameters, if they were set
+    if (functionObjects[n]->ExtraParamsSet()) {
+      functionObjects[n]->GetExtraParamsDescription(extraParamLines);
+      for (int k = 0; k < extraParamLines.size(); k++)
+        stringVector.push_back(PrintToString("%s%s\n", prefix, extraParamLines[k].c_str()));
+    }
+    
+    // print the function parameter values
+    nParamsThisFunc = paramSizes[n];
     for (int i = 0; i < nParamsThisFunc; i++) {
       paramName = GetParameterName(indexOffset + i);
       paramVal = params[indexOffset + i];
+      // the following is placed in front of the unit string *if* we're not printing
+      // the parameter errors (since that case we've already put a comment character
+      // into the output line)
+      unitsPrefix = "\t# ";
       if (printLimits)
         if (parameterInfoVect[indexOffset + i].fixed == 1)
           newLine = PrintToString(PARAM_FORMAT_WITH_FIXED, prefix, paramName.c_str(), 
@@ -1827,12 +1857,22 @@ int ModelObject::PrintModelParamsToStrings( vector<string> &stringVector, double
           newLine = PrintToString(PARAM_FORMAT_WITH_LIMITS, prefix, paramName.c_str(), 
         						paramVal, parameterInfoVect[indexOffset + i].limits[0], 
         						parameterInfoVect[indexOffset + i].limits[1]);
-      else if (errs != NULL)
+      else if (errs != NULL) {
         newLine = PrintToString(PARAM_FORMAT_WITH_ERRS, prefix, paramName.c_str(), 
         						paramVal, errs[indexOffset + i]);
+        unitsPrefix = "";
+      }
       else
         newLine = PrintToString(PARAM_FORMAT, prefix, paramName.c_str(), paramVal);
-      stringVector.push_back(newLine);
+      if (thisFuncHasUnits) {
+        string  unitsString = paramUnits[i];
+        if (unitsString.size() > 0) {
+          string  extraString = PrintToString(UNITS_FORMAT, unitsPrefix.c_str(), 
+        										unitsString.c_str());
+          newLine += extraString;
+        }
+      }
+      stringVector.push_back(newLine + "\n");
     }
     indexOffset += paramSizes[n];
   }
@@ -1842,8 +1882,8 @@ int ModelObject::PrintModelParamsToStrings( vector<string> &stringVector, double
 
 
 /* ---------------- PUBLIC METHOD: PrintModelParamsHorizontalString --- */
-/// Like PrintModelParams, but prints parameter values all in one line to a string
-/// (*without* parameter names or limits or errors), which is returned.
+/// Like PrintModelParamsToString, but prints parameter values all in one line to
+/// a string (*without* parameter names or limits or errors), which is returned.
 /// Meant to be used in printing results of bootstrap resampling (imfit) or MCMC
 /// chains (imfit-mcmc)
 string ModelObject::PrintModelParamsHorizontalString( const double params[], const string& separator )

@@ -13,7 +13,7 @@ ModelObject: mask vector applied to weight vector. (8 valid pixels remain)
 3 free parameters (5 degrees of freedom)
 Estimated memory use: 720 bytes (0.7 KB)
 
-Performing fit by minimizing chi^2 (data-based errors):
+Performing fit by minimizing chi^2 (user-supplied error image):
 Calling Levenberg-Marquardt solver ...
 
 *** mpfit status = 4 -- SUCCESS: Convergence in orthogonality.
@@ -31,10 +31,10 @@ AIC = 12.000000, BIC = 6.238325
 X0		1.5000 # +/- 0.0000
 Y0		1.5000 # +/- 0.0000
 FUNCTION FlatSky
-I_sky		      1 # +/- 0.53033
+I_sky		      1 # +/- 0.53033	counts/pixel
 
 Saving best-fit parameters in file "bestfit_parameters_imfit.dat"
 
-(Elapsed time: 0.000933 sec for fit, 0.002751 sec total)
+(Elapsed time: 0.000790 sec for fit, 0.002446 sec total)
 Done!
 

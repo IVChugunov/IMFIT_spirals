@@ -8,7 +8,7 @@
  *     [v0.1]: 24 April 2010: Created (as modification of func_gaussian.cpp).
  */
 
-// Copyright 2010--2016 by Peter Erwin.
+// Copyright 2010--2022 by Peter Erwin.
 // 
 // This file is part of Imfit.
 // 
@@ -40,6 +40,7 @@ using namespace std;
 /* ---------------- Definitions ---------------------------------------- */
 const int  N_PARAMS = 1;
 const char  PARAM_LABELS[][20] = {"I_sky"};
+const char  PARAM_UNITS[][30] = {"counts/pixel"};
 const char  FUNCTION_NAME[] = "Flat sky background function";
 
 const char FlatSky::className[] = "FlatSky";
@@ -55,11 +56,14 @@ FlatSky::FlatSky( )
   functionName = FUNCTION_NAME;
   shortFunctionName = className;
 
-  // Set up the vector of parameter labels
+  isBackground = true;
+
+  // Set up vectors of parameter labels and units
   for (int i = 0; i < nParams; i++) {
-    paramName = PARAM_LABELS[i];
-    parameterLabels.push_back(paramName);
+    parameterLabels.push_back(PARAM_LABELS[i]);
+    parameterUnits.push_back(PARAM_UNITS[i]);
   }
+  parameterUnitsExist = true;
   
   doSubsampling = true;
 }
@@ -80,14 +84,6 @@ void FlatSky::Setup( double params[], int offsetIndex, double xc, double yc )
 double FlatSky::GetValue( double x, double y )
 {
   return I_sky;
-}
-
-
-/* ---------------- PUBLIC METHOD: IsBackground ------------------------ */
-
-bool FlatSky::IsBackground( )
-{
-  return true;
 }
 
 

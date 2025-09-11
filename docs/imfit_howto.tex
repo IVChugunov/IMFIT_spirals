@@ -74,7 +74,7 @@
 \newcommand{\pmlr}{PMLR}
 
 % Other stuff, including version number
-\newcommand{\versionnum}{1.8.0}
+\newcommand{\versionnum}{1.9.0}
 
 \newcommand{\red}{\textcolor{red}}
 
@@ -104,7 +104,7 @@
 \chapter{What Is It?}
 
 \Imfit{} is a program for fitting astronomical images -- specifically,
-for fitting images of galaxies, though it could certainly be used for
+for fitting images of galaxies, though it can certainly be used for
 fitting other sources. The user specifies a set of one or more 2D
 surface-brightness functions (e.g., elliptical exponential, elliptical
 S\'ersic, circular Gaussian) which will be added together in order to
@@ -156,14 +156,16 @@ distinction should be meaningless. (I.e., in most cases you're using the
 \bigskip
 
 \textbf{System Requirements:} \Imfit{} has been built and tested on
-Intel-based MacOS X (or macOS) 10.8--10.13 (Mountain Lion, Mavericks,
-Yosemite, El Capitan, Sierra, and High Sierra)\footnote{Versions 1.3 and earlier were
-also built for MacOS X 10.6 and 10.7; it's unclear whether the current
-version could still be compiled for those systems.} and Linux (Ubuntu)
-systems. It uses standard C++ or C++11 and should work on most
-Unix-style systems with a modern C++ compiler and the Standard Template
-Library (e.g., \textsc{gcc} v4.8.1 or higher). It relies on three
-external, open-source libraries: version 3 of the \textsc{cfitsio}
+Intel-based MacOS X (or macOS) 10.8--12 (Mountain Lion, Mavericks,
+Yosemite, El Capitan, Sierra, and High Sierra)\footnote{Versions 1.3 and
+earlier were also built for MacOS X 10.6 and 10.7; it's unclear whether
+the current version could still be compiled for those systems.} and
+Linux (Ubuntu) systems. The Intel-based Mac binary will also run on
+Apple Silicon (aka arm64) Mac computers via the Rosetta 2 facility. It
+uses standard C++ or C++11 and should work on most Unix-style systems
+with a modern C++ compiler and the Standard Template Library (e.g.,
+\textsc{gcc} v4.8.1 or higher). It relies on three external, open-source
+libraries: version 3 of the \textsc{cfitsio}
 library\footnote{\url{https://heasarc.nasa.gov/fitsio/}} for
 \textsc{fits} image I/O, version 3 of the \textsc{fftw} (Fastest Fourier
 Transform in the West) library\footnote{\url{http://www.fftw.org/}} for
@@ -404,9 +406,9 @@ The standard compiler tools for macOS (formerly Mac OS~X) are those
 which come with Apple's Xcode, which for C and C++ are based on LLVM's
 Clang. (Confusingly, the Clang-based tools include ``\texttt{gcc}'' and
 ``\texttt{g++}'' aliases which are wrappers around \texttt{clang} and
-\texttt{clang++}. To be sure, try \texttt{gcc -v}; if you see something
-like ``Apple LLVM version'', then you know it's really the Clang
-compiler.)
+\texttt{clang++}. To be certain this is the case, try \texttt{gcc -v};
+if you see something like ``Apple LLVM version'', then you know it's
+really the Clang compiler.)
 
 Prior to version 9 of Xcode (introduced in late 2017), the
 Apple-supplied Clang compiler did \textit{not} support OpenMP (even though
@@ -427,7 +429,7 @@ GCC (this should be version 4.8.1 or later), such as those available via
 package managers such as Homebrew or MacPorts. (Note that Homebrew does
 not \textit{replace} the pseudo-``gcc'' and ``g++'' aliases provided by
 Xcode, which will still point to Apple's Clang compilers; instead, it
-installs version-specific names such as ``gcc-9'' and ``g++-9''.)
+installs version-specific names such as ``gcc-12'' and ``g++-12''.)
 Another alternative is to install a version of LLVM/Clang that
 \textit{does} support OpenMP, e.g., from one of the aforementioned
 package managers.
@@ -480,6 +482,9 @@ computation by compiling with the following commands:
 \newpage
 
 \chapter{Trying It Out}
+
+This section has some basic notes on how to use \Imfit; for a somewhat more comprehensive
+introduction, see the online tutorial at \url{https://www.mpe.mpg.de/~erwin/code/imfit/markdown/index.html}.
 
 In the \texttt{examples/} directory are some sample galaxy images, masks, PSF images, and
 configuration files. To give \imfit{} a quick spin (and check that it's working on your system), change to the
@@ -574,7 +579,7 @@ into a single item (if ``\texttt{-a}'' and ``\texttt{-b}'' are flags,
 ``\texttt{-a -b}'' will work, but ``\texttt{-ab}'' will \textit{not}), and you
 cannot merge a one-character option and its target
 (``\texttt{-cfoo.dat}'' is \textit{not} a valid substitute for
-``\texttt{-c foo.dat}'').
+``\texttt{-c=foo.dat}'' or ``\texttt{-c foo.dat}'').
 
 
 \section{Command-line Flags and Options}\label{sec:imfit-flags}
@@ -669,13 +674,13 @@ image $-$ best-fitting model image) will be saved using the specified filename.
 \bigskip
 
 \item \texttt{--nm} -- use Nelder-Mead simplex instead of Levenberg-Marquardt as
-the minimization technique (\textsc{Warning}: slower)
+the minimization technique (\textsc{Warning}: slower).
 
 \item \texttt{--de} -- use Differential Evolution instead of Levenberg-Marquardt as
-the minimization technique (\textsc{Warning}: much slower!)
+the minimization technique (\textsc{Warning}: much slower!).
 
 \item \texttt{--de-lhs} -- use Differential Evolution with Latin hypecube sampling
-(as opposed to standard uniform sampling) for the initial guesses
+(as opposed to standard uniform sampling) for the initial guesses.
 
 \item \texttt{--nlopt} \textit{algorithm-name} -- use one of the
 ``local derivative-free'' minimization algorithms from the NLopt
@@ -692,19 +697,18 @@ with \texttt{--nlopt NM}, though it's simpler just to use \texttt{--nm}).
 (instead of the data values) to estimate the individual-pixel dispersions
 $\sigma_{i}$ for \chisquare{} minimization
 
-\item \texttt{--cashstat} -- use Cash statistic $C$ instead of \chisquare{}
-as the fit statistic for minimization. This is especially useful in the
-case of Poisson statistics and low or zero read noise, but it also provides less
-biased fits than the \chisquare{} approach even when count levels are
-high. Cannot be used with the (default) Levenberg-Marquardt minimization
-technique.
+\item \texttt{--poisson-mlr} or \texttt{--mlr} -- use the Poisson
+Maximum-Likelihood-Ratio (MLR) statistic for minimization (this is the same as
+the ``CSTAT'' statistic in the X-ray packages XSPEC and Sherpa) This is
+especially useful in the case of Poisson statistics and low or zero read
+noise, but it also provides less biased fits than the \chisquare{}
+approach even when count levels are high.
 
-\item \texttt{--poisson-mlr} or \texttt{-mlr} -- like \texttt{--cashstat}, but uses the
-Poisson Maximum-Likelihood-Ratio statistic for minimization (this is
-the same as the ``CSTAT'' statistic in the X-ray packages XSPEC and
-Sherpa); fits should be essentially identical. The main difference is that this statistic is
-always $\ge 0$, which means it \textit{can} be used with the (default)
-Levenberg-Marquardt minimization technique.
+\item \texttt{--cashstat} -- use Cash statistic $C$ instead of
+\chisquare{} as the fit statistic for minimization. This is essentially
+the same as the Poisson MLR statistic, and should give identical
+results. However, since values of $C$ can be $< 0$, it cannot be used
+with the (default) Levenberg-Marquardt minimization technique.
 
 \item \texttt{--ftol} \textit{FTOL-value} -- specify tolerance for
 fractional improvements in the fit statistic value; if further iterations do 
@@ -732,17 +736,25 @@ printed once per iteration) and N-M simplex fitting (best-fit values printed onc
 \bigskip
 
 \item \texttt{--chisquare-only} or \texttt{--fitstat-only} (these are
-synonyms) -- Evaluate the \chisquare{} value for the initial input
-model as a fit to the input image, \textit{without} doing any
-minimization to find a better solution. (If \texttt{--cashstat} or
-\texttt{--poisson-mlr} is also specified, then the appropriate 
-statistic is evaluated instead.)
+synonyms) -- Evaluate the \chisquare{} value for the initial input model
+as a fit to the input image, \textit{without} doing any minimization to
+find a better solution. (If \texttt{--poisson-mlr} or
+\texttt{--cashstat} is also specified, then the appropriate statistic is
+evaluated instead.)
 
 \bigskip
 
-\item \texttt{--max-threads} \textit{n-threads} -- specifies the maximum number of CPU cores to use
-during computation (the default is to use \textit{all} available CPU cores); has no
-effect if \imfit{} was compiled without OpenMP or \textsc{fftw} multithreading support.
+\item \texttt{--max-threads} \textit{n-threads} -- specifies the maximum
+number of CPU threads to use during computation (the default is to use
+\textit{all} available CPU threads); has no effect if \imfit{} was
+compiled without OpenMP or \textsc{fftw} multithreading support. For
+best performance with PSF convolution, this should be set = the number
+of physical CPU cores (\textit{not} the number of logical cores). For
+best performance on Apple Silicon computers, this should be set = the
+number of ``performance'' cores. (As of version 1.9, \Imfit{} will
+default to this mode.) You can use this to reduce the number of threads
+that \Imfit{} will use if you want to reduce system load or power consumption,
+at the cost of slower fits.
 
 \item \texttt{--seed} \textit{N} -- specifies a specific integer seed to use with
 random number generation; applies to DE fits and also to bootstrap resampling. This is
@@ -779,7 +791,7 @@ possibly additional information (e.g, gain and read noise for the input image).
 The configuration file should be a plain text file. Blank lines and
 lines beginning with ``\#'' are ignored; in fact, anything on the same line after a
 ``\#'' is ignored, which allows for comments at the end of lines. (A minor exception:
-on lines defining a function name, an optical label can be specified as part
+on lines defining a function name, an optional label can be specified as part
 of the comment.)
 
 A model for an image is specified by one or more \textbf{function sets},\footnote{In
@@ -853,7 +865,7 @@ Finally, here is a more elaborate example, specifying a model that has two
 function sets, with the first set having two individual functions (this
 could be a model for, e.g., simultaneously fitting two galaxies in the same
 image, one as S\'ersic + exponential, the other with just an exponential).
-In addition, we specify labels for the two functions. These labels are
+In addition, we specify labels for the functions. These labels are
 purely for the convenience of the user; they have no
 effect on the fitting, but are reproduced in output files.
 
@@ -933,7 +945,7 @@ Note that these positions are in the coordinate system of the entire
 image. That is, if you specify a subsection of the image to be fit
 (e.g., ``image.fits[150:350,425:700]''), the X0 and Y0 values must still
 be absolute positions referring to the original image, \textit{not} relative
-positions with the subsection.
+positions within the subsection.
 
 
 \bigskip
@@ -1049,6 +1061,8 @@ functions, including their parameters.
 \item TiltedSkyPlane -- a sky background in the form of an inclined plane.
 \item Gaussian -- an elliptical 2D Gaussian function.
 \item Moffat -- an elliptical 2D Moffat function.
+\item PointSource -- a scaled copy of the user-supplied PSF image.
+\item PointSourceRot -- as for PointSource, but allowing arbitrary rotation
 \item Exponential -- an elliptical 2D exponential function.
 \item Exponential\_GenEllipse -- an elliptical 2D exponential function using
 generalized ellipses (``boxy'' to ``disky'' shapes) for the isophote shapes.
@@ -1064,7 +1078,7 @@ consisting of a Gaussian centered at $r = R_{\mathrm{ring}}$.
 \item GaussianRing2Side -- like GaussianRing, but with a radial profile
 consisting of an asymmetric Gaussian (different values of $\sigma$ for
 $r < R_{\mathrm{ring}}$ and $r > R_{\mathrm{ring}}$).
-\item GaussianRingAz -- like GaussianRing, but the peak intensity of the
+\item GaussianRingAz -- like GaussianRing, but with the peak intensity of the
 radial Gaussian profile varying (sinusoidally) with azimuth.
 \item EdgeOnDisk -- the analytical form for a perfectly edge-on exponential
 disk, using the Bessel-function solution of \citet{vdk81} for 
@@ -1088,9 +1102,13 @@ through a 3D luminosity-density model, generating a projected 2D model
 image given input specifications of the orientation and inclination to
 the line of sight.
 \begin{itemize}
-\item ExponentialDisk3D -- uses a 3D luminosity-density model of an axisymmetric 
-exponential disk (with different radial and vertical scale lengths), observed
-at an arbitrary inclination, to generate a projected surface-brightness image.
+
+\item ExponentialDisk3D -- uses a 3D luminosity-density model of an
+axisymmetric disk with an exponential radial profile and a
+generalized sech function for the vertical profile (as for the EdgeOnDisk
+function), observed at an arbitrary inclination, to generate a projected
+surface-brightness image.
+
 \item BrokenExponentialDisk3D -- similar to ExponentialDisk3D, except that the
 radial profile of the luminosity density is a broken exponential.
 
@@ -1348,7 +1366,8 @@ image internally.
 Although \imfit{} uses a multi-threaded version version of the
 \textsc{fftw} library, which is itself quite fast, adding PSF
 convolution to the image-fitting process \textit{does} slow things down
-considerably.
+considerably. \textbf{See Section~\ref{sec:threading} for notes on how to maximize
+multi-threaded performance with PSF convolution.}
 
 
 \subsection{Convolution with Oversampled PSFs}
@@ -1561,7 +1580,7 @@ does \textit{not} require or use initial guesses for the parameter values.
 The Differential Evolution algorithm does, however, \textit{require}
 lower and upper limits for \textit{all} parameters in the configuration
 file (see Section~\ref{sec:param-limits}); this is because DE generates
-initial parameter-value ``genomes'' by random uniform sampling from within the
+initial parameter-value ``genomes'' by random sampling from within the
 ranges specified by the parameter limits. The format of the
 configuration file still requires that initial-guess values be present
 for all parameters as well, but these are actually ignored by the DE
@@ -1809,6 +1828,52 @@ analysis using \Imfit{} models.
 
 \chapter{Miscellaneous Notes}
 
+\section{Faster PSF Convolution with Multithreading}\label{sec:threading}
+
+If \imfit{} is compiled with multi-threading support (the default),
+there is a subtle ``gotcha'' when it comes to using PSF convolution. If
+multi-threading is enabled, then by default \imfit{} will choose the
+maximum possible number of threads to use, which is the maximum number
+of hardware threads that the operating system reports. In older
+multi-core CPUs, this is the number of actual (physical) cores on the
+CPU chip (or on all CPU chips if there are multiple CPUs). This is ideal
+for such systems.
+
+However, many modern multi-core CPUs include ``simultaneous
+multithreading'' (called ``hyperthreading'' for Intel CPUs). This
+involves executing multiple (usually 2) threads \textit{per core}, and
+the operating system will usually include this in its hardware thread
+(or ``logical core'') count. (E.g., an 8-core Intel i9 CPU will be
+reported as having 16 threads available, two for each core.)
+
+For computations that \textit{don't} involve PSF convolution, this is
+fine, and the results are (slightly) faster than if one used one thread per
+physical core. However, this does \textit{not} work for PSF convolution:
+the computations can sometimes be \textit{slower} if more threads than
+physical cores are used -- sometimes a factor of several times slower!
+
+A somewhat related problem seems to occur with the new Apple Silicon
+(aka M1, M2) CPUs in modern Mac computers. Although these do
+\textit{not} have simultaneous multithreading, they do have different
+CPU core \textit{types}: half or more of the cores are
+``high-performance'' (fast), while the remainder are ``high-efficiency''
+(useful for low power consumption, but slower).
+
+Because using more threads than there are physical (or high-efficiency) cores
+seems to either be no faster than, or signficantly slower than, using
+the same number of threads as there are physical (or high-efficiency) cores,
+\Imfit{} now (as of version 1.9) defaults to the latter case. (This requires some trickery
+in the case of Linux, as it is not easy for a program to learn how many
+physical cores there are.)
+
+For versions of \Imfit{} prior to 1.9, you should use the
+\texttt{--max-threads} option and set this equal to the number of
+\textit{physical} cores (or high-performance cores on an Apple Silicon
+CPU) on your computer.
+
+
+
+
 \section{Memory Usage}
 
 As noted above, \imfit{} will print an estimate of the memory needed for a fit
@@ -2005,11 +2070,13 @@ components -- e.g., the purely elliptical versions of the Gaussian,
 Exponential, and S\'{e}rsic functions -- there are analytical
 expressions which could be used. But since \imfit{} and \makeimage{} are
 designed to use arbitrary functions, including ones which do not have
-analytical expressions for total flux, \makeimage{} estimates the flux
-for each component by internally constructing a large model image for
-each component function in the configuration file, with the component
-centered within this image, and then summing the pixel values of that
-image. The output includes a list of total and relative fluxes (i.e.,
+analytical expressions for total flux, \makeimage{} normally estimates
+the flux for each component by internally constructing a large model
+image for each component function in the configuration file, with the
+component centered within this image, and then summing the pixel values
+of that image. (For certain image functions -- e.g., Gaussian,
+Exponential, Sersic -- the analytic total flux value is calculated
+instead.) The output includes a list of total and relative fluxes (i.e.,
 what fraction of the total flux each component makes up) for each
 component in the model image -- and their magnitudes, if a zero point is
 supplied.
@@ -2031,7 +2098,7 @@ Useful command-line flags and options:
 \item \texttt{--estimation-size} \textit{N\_columns\_and\_rows} -- size of the
 (square) image to construct (the default size is 5000 pixels on a side)
 
-\item \texttt{--zero-point} \textit{value} -- zero point for converting total counts
+\item \texttt{--zero-point} \textit{value} -- zero point $Z$ for converting total counts
 to magnitudes:
 \begin{equation}
 m \; = \; Z - 2.5 \log_{10}( {\mathrm{counts}} )
@@ -2042,8 +2109,7 @@ m \; = \; Z - 2.5 \log_{10}( {\mathrm{counts}} )
 This enables you to compute things like bulge/total ratios -- but it's up to you
 to determine which component(s) should be considered ``bulge'', ``disk'', etc.
 
-When run in this mode, \makeimage{} will still produce an output image file --
-unless you also specify the \texttt{--nosave} option.
+When run in this mode, \makeimage{} will \textit{not} produce an output image file.
 
 
 
@@ -2323,6 +2389,8 @@ The new class should also redefine the following internal class constants:
 \item \texttt{N\_PARAMS} -- the number of input parameters (\textit{excluding} the
 central pixel coordinates);
 \item \texttt{PARAM\_LABELS} -- a vector of string labels for the input parameters;
+\item \texttt{PARAM\_UNITS} -- \textbf{[optional]} a vector of string labels 
+describing units (if any) for the input parameters;
 \item \texttt{FUNCTION\_NAME} -- a short string describing the function;
 \item \texttt{className} -- a string (no spaces allowed) giving the official name
 of the function, as it would be used in a configuration file.
@@ -2331,8 +2399,6 @@ of the function, as it would be used in a configuration file.
 The \texttt{add\_functions.cpp} file should then be updated by:
 \begin{enumerate}
 \item including the header file for the new class;
-%\item adding the class short name as a string to the \texttt{FUNCTION\_NAMES} array;
-%\item incrementing the \texttt{N\_FUNCTIONS} constant;
 \item adding 2 lines to the PopulateFactoryMap() function to add the ability to create an instance of
 the new class.
 \end{enumerate}
@@ -2385,7 +2451,7 @@ class Gaussian : public FunctionObject
 \end{verbatim}
 (replace \texttt{Gaussian} with \texttt{NewMoffat})
 
-And finally edit the list of class data members, changing this:
+And, finally, edit the list of class data members, changing this:
 \begin{verbatim}
   private:
     double  x0, y0, PA, ell, I_0, sigma;   // parameters
@@ -2416,6 +2482,9 @@ Edit this file and change the following lines (changed text indicated in red):
 const int  N\_PARAMS = \red{5}; \\
 
 const char  PARAM\_LABELS[][20] = \{"PA", "ell", "I\_0", \red{"fwhm", "beta"}\}; \\
+
+const char  PARAM\_UNITS[][30] = \{"deg (CCW from +y axis)", "", "counts/pixel",
+				"pixels"\red{, ""}\}; \\
 
 const char  FUNCTION\_NAME[] = "\red{Moffat} function";
 
@@ -2572,6 +2641,40 @@ such as a function which calculates the $b_{n}$ parameter for a S\'ersic
 function, and a function which calculates the effective radius for a
 generalized ellipse.
 
+
+\subsection{New in Version 1.9: Parameter Units}
+
+Version 1.9 of \Imfit{} added the (optional!) ability to print parameter units
+when outputting best-fit parameters. This is purely cosmetic (it has no effect
+on image computation or fitting) and is meant to be helpful to users who
+might be uncertain as to the meaning of certain parameters of an image function.
+
+To add parameter units to your function all you really need to do is
+define the units in the constructor, and set the
+\texttt{parameterUnitsExist} data member to \texttt{true}. Note that all
+of the standard image functions included in \Imfit{} all have (as of v1.9)
+parameter unit definitions, so you can look at the constructors for any
+of those classes for examples of how to do this.
+
+Units are defined as short strings; if a parameter does \textit{not} have
+a unit (e.g., ellipticities or axis ratios, indices, exponents, etc.), then
+use an empty string (\texttt{""}).
+
+
+
+\subsection{New in Version 1.9: Optional Meta-Parameters}
+
+Version 1.9 of \Imfit{} introduced the optional ability to specify that an
+image function takes optional ``meta-parameters'' -- parameters that define
+certain specializations of a function, but which do \textit{not} change
+during a fit. An example is the \texttt{PointSource} function, which has
+an optional meta-parameter (\texttt{mode}) specifying the interpolation
+algorithm to use (bicubic spline (the default) versus Lanczos2).
+
+TBD.
+
+
+
 %Really simple example: FlatSky
 %
 %GetValues vs CalculateIntensity
@@ -2602,7 +2705,9 @@ your research.
 
 Unless otherwise noted, all ``intensity'' parameters (\texttt{I\_sky},
 \texttt{I\_0}, \texttt{I\_e}, etc.) are in units of counts per pixel, and all
-lengths are in pixels.
+lengths (radii, semi-major axes, etc.) are in pixels. In addition, unless
+otherwise noted, position angles ("PA") are in degrees, measured CCW from
+the +y axis of the image (negative values are valid).
 
 A sample function specification (giving the parameters in their proper order),
 as you would use in a configuration file, is listed for each function
@@ -2637,8 +2742,12 @@ A uniform background: $I(x,y) = I_{\mathrm{sky}}$ everywhere.
 
 \begin{verbatim}
 FUNCTION FlatSky
-I_sky
+I_sky     # counts/pixel
 \end{verbatim}
+
+Note that this is considered a ``background'' function, and so no ``total flux''
+calculation is done when using \texttt{makeimage}'s \texttt{--print-fluxes} or
+\texttt{savefluxes} options.
 
 
 \subsubsection{TiltedSkyPlane}
@@ -2651,10 +2760,14 @@ I(x,y) \, = \, I_{0} + m_{x} (x - X_{0}) + m_{y} (y - Y_{0}).
 
 \begin{verbatim}
 FUNCTION TiltedSkyPlane
-I_0
+I_0     # counts/pixel
 m_x
 m_y
 \end{verbatim}
+
+Note that this is considered a ``background'' function, and so no ``total flux''
+calculation is done when using \texttt{makeimage}'s \texttt{--print-fluxes} or
+\texttt{savefluxes} options.
 
 
 \subsubsection{Gaussian}
@@ -2669,7 +2782,7 @@ I(a) \, = \, I_{0} \exp(-a^2/(2 \sigma^2)).
 FUNCTION Gaussian
 PA
 ell
-I_0
+I_0     # counts/pixel
 sigma
 \end{verbatim}
 
@@ -2697,7 +2810,7 @@ The Moffat function is often a good approximation to typical telescope PSFs (see
 FUNCTION Moffat
 PA
 ell
-I_0
+I_0     # counts/pixel
 fwhm
 beta
 \end{verbatim}
@@ -2733,7 +2846,21 @@ The interpolation is done using the 2D bicubic function
 
 \begin{verbatim}
 FUNCTION PointSource
-I_tot
+I_tot     # counts
+\end{verbatim}
+
+
+\subsubsection{PointSourceRot}
+
+This function is basically identical to PointSource, except that it allows
+for arbitrary rotation of the user-input PSF image about its center
+(the center being the central pixel of the image, so this is best used
+with PSF images that are square and an odd number of pixels in size).
+
+\begin{verbatim}
+FUNCTION PointSourceRot
+I_tot     # counts
+PA
 \end{verbatim}
 
 
@@ -2756,7 +2883,7 @@ This reduces to the original King profile when $\alpha = 2$.
 FUNCTION ModifiedKing
 PA
 ell
-I_0
+I_0     # counts/pixel
 r_c
 r_t
 alpha
@@ -2774,7 +2901,7 @@ tidal/truncation radius $r_{t}$, which can be recovered as $r_{t} = c r_{c}$).
 FUNCTION ModifiedKing2
 PA
 ell
-I_0
+I_0     # counts/pixel
 r_c
 c
 alpha
@@ -2796,7 +2923,7 @@ where $I_{0}$ is the central surface brightness and $h$ is the scale length.
 FUNCTION Exponential
 PA
 ell
-I_0
+I_0     # counts/pixel
 h
 \end{verbatim}
 
@@ -2822,7 +2949,7 @@ FUNCTION Exponential_GenEllipse
 PA
 ell
 c0
-I_0
+I_0     # counts/pixel
 h
 \end{verbatim}
 
@@ -2853,7 +2980,7 @@ FUNCTION Sersic
 PA
 ell
 n
-I_e
+I_e     # counts/pixel
 r_e
 \end{verbatim}
 
@@ -2871,7 +2998,7 @@ PA
 ell
 c0
 n
-I_e
+I_e     # counts/pixel
 r_e
 \end{verbatim}
 
@@ -2895,7 +3022,7 @@ FUNCTION Core-Sersic
 PA
 ell
 n
-I_b
+I_b     # counts/pixel
 r_e
 r_b
 alpha
@@ -2945,7 +3072,7 @@ Note that the parameter $\alpha$ has units of length$^{-1}$ (i.e., pixels$^{-1}$
 FUNCTION BrokenExponential
 PA
 ell
-I_0
+I_0     # counts/pixel
 h1
 h2
 r_break
@@ -2962,7 +3089,7 @@ centered at $r = R_{\mathrm{ring}}$.
 FUNCTION GaussianRing
 PA
 ell
-A
+A     # counts/pixel
 R_ring
 sigma_r
 \end{verbatim}
@@ -2974,29 +3101,30 @@ Similar to GaussianRing, but now using an asymmetric Gaussian (different
 values of $\sigma$ for $r < R_{\mathrm{ring}}$ and $r > R_{\mathrm{ring}}$).
 
 \begin{verbatim}
-FUNCTION GaussianRingAz
-PA
+FUNCTION GaussianRing2Side
+PA     # deg (CCW from +y axis)
 ell
-A_maj
-A_min_rel
-R_ring
-sigma_r
+A     # counts/pixel
+R_ring     # pixels
+sigma_r_in     # pixels
+sigma_r_out     # pixels
 \end{verbatim}
 
 
 \subsubsection{GaussianRingAz}
 
-TBD. 
-
 Similar to GaussianRing, except that the peak radial intensity is modulated
 by a cosine function, varying from $A_{\mathrm{maj}}$ along the ellipse major
-axis to $A_{\mathrm{min}} = A_{\mathrm{min\_rel}} A_{\mathrm{maj}}$.
+axis to $A_{\mathrm{min}} = A_{\mathrm{min\_rel}} A_{\mathrm{maj}}$. $A_{\mathrm{maj}}$
+is a standard intensity variable (counts/pixel); $A_{\mathrm{min\_rel}}$ defines
+the minor-axis intensity relative to $A_{\mathrm{maj}}$; $A_{\mathrm{min\_rel}} = 1$
+will produce the same result as a standard GaussianRing component.
 
 \begin{verbatim}
 FUNCTION GaussianRingAz
 PA
 ell
-A_maj
+A_maj     # counts/pixel
 A_min_rel
 R_ring
 sigma_r
@@ -3026,9 +3154,10 @@ $\mu(0,0)$ is given by
 \begin{equation}
 \mu(0,0) \; = \;  2 \, h \, L_{0},
 \end{equation}
-where $L_{0}$ is the central luminosity \textit{density} (see \citealt{vdk81}). Note that 
-$L_{0}$ is the actual parameter required by the function; $\mu(0,0)$ is calculated 
-internally.
+where $L_{0}$ is the central luminosity \textit{density}, referred to as ``counts/voxel''
+in the units string (see \citealt{vdk81}). Note that 
+$L_{0}$ is the actual parameter required by the function; $\mu(0,0)$ (which has
+units of counts/pixel) is calculated internally.
 
 When $n = 1$, this becomes the familiar $\mathrm{sech}^2$ model for the
 vertical distribution of a disk (with $z_{0}$ corresponding to $1/2$ of the
@@ -3042,7 +3171,7 @@ the code substitutes a pure exponential function for the $\mathrm{sech}^{2/n}$ t
 \begin{verbatim}
 FUNCTION EdgeOnDisk
 PA
-L_0
+L_0     # counts/voxel
 h
 n
 z_0
@@ -3062,7 +3191,7 @@ model of a ring.)
 \begin{verbatim}
 FUNCTION EdgeOnRing
 PA
-I_0
+I_0     # counts/pixel
 r
 sigma_r
 sigma_z
@@ -3079,7 +3208,7 @@ with radial size \texttt{sigma\_r\_in}, while the outer side has radial size
 \begin{verbatim}
 FUNCTION EdgeOnRing2Side
 PA
-I_0
+I_0     # counts/pixel
 r
 sigma_r_in
 sigma_r_out
@@ -3120,7 +3249,7 @@ FUNCTION FerrersBar2D
 PA
 ell
 c0
-I_0
+I_0     # counts/pixel
 n
 a_bar
 \end{verbatim}
@@ -3131,14 +3260,14 @@ a_bar
 
 TBD.
 
-see \cite{erwin20}, especially Appendix~A.
+see \cite{erwin21}, especially Appendix~A.
 
 \begin{verbatim}
 FUNCTION FlatBar
 PA
 ell
 deltaPA_max
-I_0
+I_0     # counts/pixel
 h1
 h2
 r_break
@@ -3184,6 +3313,16 @@ to the image +y axis. You are, of course, free to change this if you
 write 3D components of your own, though I will probably continue to
 follow it in the future.)
 
+A note on units: since these are luminosity-density functions, which
+yield standard surface-brightness or intensity units (usually
+counts/pixel) by integrating along the line of sight, the brightness is
+controlled by a luminosity-density parameter ($J_{0}$) which has units
+of ``counts/voxel''. This slightly odd name indicates that the
+line-of-sight integration (integrating using units of pixels) will
+produce counts/pixel in the final image. (Technically, we could speak of
+a linear 1D unit of ``pixel-size'', with the 2D image pixels having area
+units of pixel-size$^{2}$ -- but that's being way too pedantic!)
+
 
 \subsubsection{ExponentialDisk3D}
 
@@ -3214,7 +3353,7 @@ setting $n$ equal to some fixed, large number.
 FUNCTION ExponentialDisk3D
 PA
 inc
-J_0
+J_0     # counts/voxel
 h
 n
 z_0
@@ -3237,7 +3376,7 @@ of a simple exponential. Consequently, it has the following parameters:
 FUNCTION BrokenExponentialDisk3D
 PA
 inc
-J_0
+J_0     # counts/voxel
 h1
 h2
 r_break
@@ -3268,7 +3407,7 @@ PA
 inc
 PA_ring
 ell
-J_0
+J_0     # counts/voxel
 a_ring
 sigma
 h_z
@@ -3326,7 +3465,7 @@ FUNCTION FerrersBar3D
 PA
 inc
 barPA
-J_0
+J_0     # counts/voxel
 R_bar
 q
 q_z
@@ -3349,7 +3488,7 @@ Maximilian Fabricius for suggesting improvements to the documentation.
 Additional bug reports and suggestions from Andr{\'e} Luiz de Amorim,
 Giulia Savorgnan, David Streich, Guillermo Barro, Sergio Pascual, Lee
 Kelvin, Colleen Gilhuly, Semyeong Oh, Benne Holwerde, David Wilman, 
-Iskren Georgiev, and Corentin Schreiber are gratefully appreciated.
+Iskren Georgiev, Corentin Schreiber, and Dan Prole are gratefully appreciated.
 
 
 \section{Data Sources}
@@ -3437,10 +3576,10 @@ Surface-Brightness Profiles of Barred Galaxies'', \textit{Astron.J.} \textbf{135
 \bibitem[Erwin(2015)]{erwin15} Erwin, P. 2015, ``Imfit: A Fast, Flexible
 New Program for Astronomical Image Fitting'', \textit{Astrophys.J.} \textbf{799:} 226.
 
-\bibitem[Erwin et al.(2020)]{erwin20} Erwin, P., et al. 2020,
+\bibitem[Erwin et al.(2021)]{erwin21} Erwin, P., et al. 2021,
 ``Composite Bulges – II. Classical Bulges and Nuclear Disks in Barred
 Galaxies: The Contrasting Cases of NGC 4608 and NGC 4643'',
-\textit{Monthly Notices of the Royal Astronomical Society}, submitted.
+\textit{Monthly Notices of the Royal Astronomical Society}, \textbf{502:} 2446.
 
 \bibitem[Ferrers(1877)]{ferrers} Ferrers, N. M. 1877, ``On the
 Potentials of Ellipsoids, Ellipsoidal Shells, Elliptic Laminae, and

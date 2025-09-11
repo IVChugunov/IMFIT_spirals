@@ -7,7 +7,7 @@
  *
  */
 
-// Copyright 2020 by Peter Erwin.
+// Copyright 2020--2022 by Peter Erwin.
 // 
 // This file is part of Imfit.
 // 
@@ -39,6 +39,7 @@ using namespace std;
 /* ---------------- Definitions ---------------------------------------- */
 const int  N_PARAMS = 3;
 const char  PARAM_LABELS[][20] = {"I_0", "m_x", "m_y"};
+const char  PARAM_UNITS[][30] = {"counts/pixel", "", ""};
 const char  FUNCTION_NAME[] = "Tilted sky-plane background function";
 
 const char TiltedSkyPlane::className[] = "TiltedSkyPlane";
@@ -48,17 +49,20 @@ const char TiltedSkyPlane::className[] = "TiltedSkyPlane";
 
 TiltedSkyPlane::TiltedSkyPlane( )
 {
-  string  paramName;
+
   nParams = N_PARAMS;
   
   functionName = FUNCTION_NAME;
   shortFunctionName = className;
 
-  // Set up the vector of parameter labels
+  isBackground = true;
+  
+  // Set up vectors of parameter labels and units
   for (int i = 0; i < nParams; i++) {
-    paramName = PARAM_LABELS[i];
-    parameterLabels.push_back(paramName);
+    parameterLabels.push_back(PARAM_LABELS[i]);
+    parameterUnits.push_back(PARAM_UNITS[i]);
   }
+  parameterUnitsExist = true;
   
   doSubsampling = true;
 }
@@ -84,14 +88,6 @@ double TiltedSkyPlane::GetValue( double x, double y )
   double  y_diff = y - y0;
 
   return I_0 + m_x*x_diff + m_y*y_diff;
-}
-
-
-/* ---------------- PUBLIC METHOD: IsBackground ------------------------ */
-
-bool TiltedSkyPlane::IsBackground( )
-{
-  return true;
 }
 
 

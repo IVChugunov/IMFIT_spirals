@@ -8,7 +8,7 @@
  * NAXIS2 = naxes[1] = nRows = sizeY.
 */
 
-// Copyright 2010--2020 by Peter Erwin.
+// Copyright 2010--2022 by Peter Erwin.
 // 
 // This file is part of Imfit.
 // 
@@ -56,6 +56,7 @@
 #include "sample_configs.h"
 #include "psf_oversampling_info.h"
 #include "setup_model_object.h"
+#include "count_cpu_cores.h"
 
 using namespace std;
 
@@ -73,9 +74,9 @@ static string  kNRows = "NROWS";
 
 
 #ifdef USE_OPENMP
-#define VERSION_STRING      "1.8.0 (OpenMP-enabled)"
+#define VERSION_STRING      "1.9.0 (OpenMP-enabled)"
 #else
-#define VERSION_STRING      "1.8.0"
+#define VERSION_STRING      "1.9.0"
 #endif
 
 
@@ -109,7 +110,7 @@ int main( int argc, char *argv[] )
   vector<string>  functionLabelList;
   vector<double>  parameterList;
   vector<int>  functionSetIndices;
-  vector< map<string, string> > optionalParamsMap;
+  vector< map<string, string> > optionalParams;
   vector<string>  imageCommentsList;
   double  *singleFunctionImage;
   shared_ptr<MakeimageOptions> options;
@@ -121,8 +122,12 @@ int main( int argc, char *argv[] )
 
   
   
-  /* Process command line and parse config file: */
   options = make_shared<MakeimageOptions>();    
+  // Set maximum number of threads = number of hardware cores by default
+  // (user can still override this with --max-threads option)
+  options->maxThreads = GetPhysicalCoreCount();
+  options->maxThreadsSet = true;
+  /* Process command line and parse config file: */
   ProcessInput(argc, argv, options);
 
 #ifdef USE_LOGGING
@@ -150,7 +155,7 @@ int main( int argc, char *argv[] )
   }
   status = ReadConfigFile(options->configFileName, true, functionList, 
   							functionLabelList, parameterList, functionSetIndices, 
-  							userConfigOptions);
+  							userConfigOptions, optionalParams);
   if (status != 0) {
     fprintf(stderr, "\n*** ERROR: Failure reading configuration file \"%s\"!\n\n", 
     			options->configFileName.c_str());
@@ -237,7 +242,7 @@ int main( int argc, char *argv[] )
 
   // Add functions to the model object; also tells model object where function sets start
   status = AddFunctions(theModel, functionList, functionLabelList, functionSetIndices, 
-  						options->subsamplingFlag, 0, optionalParamsMap);
+  						options->subsamplingFlag, 0, optionalParams);
   if (status < 0) {
   	fprintf(stderr, "*** ERROR: Failure in AddFunctions!\n\n");
   	exit(-1);
@@ -424,7 +429,7 @@ void ProcessInput( int argc, char *argv[], shared_ptr<MakeimageOptions> theOptio
   optParser->AddUsageLine("     --zero-point <value>     Zero point (for estimating component & total magnitudes)");
   optParser->AddUsageLine("     --save-fluxes <filename>            Save print-fluxes output to user-specified file");
   optParser->AddUsageLine("");
-  optParser->AddUsageLine("     --nosave                 Do *not* save image (for testing, or for use with --print-fluxes)");
+  optParser->AddUsageLine("     --nosave                 Do *not* save image (for testing)");
   optParser->AddUsageLine("");
   optParser->AddUsageLine("     --timing <int>           Generate image specified number of times and estimate average creation time");
   optParser->AddUsageLine("");
@@ -439,7 +444,7 @@ void ProcessInput( int argc, char *argv[], shared_ptr<MakeimageOptions> theOptio
   optParser->AddUsageLine("EXAMPLES:");
   optParser->AddUsageLine("   makeimage model_config_a.dat");
   optParser->AddUsageLine("   makeimage model_config_b.dat --ncols 800 --nrows 800 --psf best_psf.fits -o testimage_convolved.fits");
-  optParser->AddUsageLine("   makeimage bestfit_parameters.dat --print-fluxes --zero-point 26.24 --nosave");
+  optParser->AddUsageLine("   makeimage bestfit_parameters.dat --print-fluxes --zero-point 26.24");
   optParser->AddUsageLine("");
 
   optParser->AddFlag("help", "h");
@@ -537,6 +542,7 @@ void ProcessInput( int argc, char *argv[], shared_ptr<MakeimageOptions> theOptio
   }
   if (optParser->FlagSet("print-fluxes")) {
     theOptions->printFluxes = true;
+    theOptions->saveImage = false;
   }
   if (optParser->OptionSet("output")) {
     theOptions->outputImageName = optParser->GetTargetString("output");

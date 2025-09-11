@@ -21,7 +21,7 @@
  *   function_object class.
  */
 
-// Copyright 2010--2020 by Peter Erwin.
+// Copyright 2010--2022 by Peter Erwin.
 // 
 // This file is part of Imfit.
 // 
@@ -48,6 +48,7 @@
 #include <string>
 
 #include "function_object.h"
+#include "utilities_pub.h"
 
 using namespace std;
 
@@ -63,9 +64,6 @@ FunctionObject::FunctionObject( )
   // These will get redefined by derived class's constructor
   functionName = "Base (undefined) function";
   shortFunctionName = "BaseFunction";
-  
-//  label = "";
-  extraParamsSet = false;
 }
 
 
@@ -170,6 +168,39 @@ void FunctionObject::GetParameterNames( vector<string> &paramNameList )
 {
   for (int i = 0; i < nParams; i++)
     paramNameList.push_back(parameterLabels[i]);
+}
+
+
+/* ---------------- PUBLIC METHOD: GetParameterUnits ------------------- */
+/// Add this function's parameter unit names (if they exist) to a vector of strings
+void FunctionObject::GetParameterUnits( vector<string> &paramUnitList )
+{
+  for (int i = 0; i < nParams; i++)
+    if (HasParameterUnits())
+      paramUnitList.push_back(parameterUnits[i]);
+    else
+      paramUnitList.push_back("");
+}
+
+
+/* ---------------- PUBLIC METHOD: GetExtraParamsDescription ----------- */
+/// Return lines describing the user-set extra/optional parameters, if they exist.
+void FunctionObject::GetExtraParamsDescription( vector<string> &outputLines )
+{
+  string  newLine;
+  
+  outputLines.clear();
+  if (extraParamsSet) {
+    int  nExtraParams = inputExtraParams.size();
+    outputLines.push_back("OPTIONAL_PARAMS_START");
+	for (auto const& x : inputExtraParams) {
+	  string  key = x.first;
+	  string  val = x.second;
+	  newLine = PrintToString("%s   %s", key.c_str(), val.c_str());
+      outputLines.push_back(newLine);
+    }
+    outputLines.push_back("OPTIONAL_PARAMS_END");
+  }
 }
 
 

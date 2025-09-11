@@ -21,9 +21,6 @@
 # To build a version *without* OpenMP enabled
 #    $ scons --no-openmp <target-name>
 #
-# To build a version *without* FFTW threading:
-#    $ scons --no-threading <target-name>
-#
 #
 # To build a version using non-default compiler:
 #    $ scons --cc=<C_COMPILER> --cpp=<C++_COMPILE> <target-name>
@@ -51,7 +48,7 @@
 # etc.
 
 
-# Copyright 2010--2020 by Peter Erwin.
+# Copyright 2010--2022 by Peter Erwin.
 # 
 # This file is part of Imfit.
 # 
@@ -69,7 +66,7 @@
 # with Imfit.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import os, subprocess, platform, getpass, pwd
+import os, subprocess, platform, getpass, pwd, copy
 
 
 def GetLinuxType():
@@ -91,14 +88,18 @@ linux_type = None
 if os_type == "Linux":
     linux_type = GetLinuxType()
 
+# specialized for running on Intel processors; set this to False
+# if compiling for arm64 (e.g. Apple Silicon/M1) or if compiling
+# x86-64 code to run under macOS Rosetta2 on Apple Silicon/M1
+useVectorExtensions = True
 
 
 # LIBRARIES:
 # m
 # pthread [Linux]
-# dl [Linux, if using loguru for logging]
-# cfitsio
-#   -- if static, then on macOS we must link with curl [part of system]
+# dl [Linux, if using loguru for g]
+# cfitsio (v4.0 and later)
+#   -- if static, then on macOS we must link with curl AND zlib [part of system]
 #   -- for Linux, we use our compiled static-library version of cfitsio
 #      (not Ubuntu's), so we don't need any extra libraries
 # fftw3, fftw3_threads
@@ -124,7 +125,7 @@ MAC_STATIC_LIBS_PATH = "/usr/local/lib/"
 # Debian/Ubuntu standard x86-64 package installation path
 LINUX_UBUNTU_STATIC_LIBS_PATH = "/usr/local/lib/"
 libDirs = {"Darwin": MAC_STATIC_LIBS_PATH, "Linux": LINUX_UBUNTU_STATIC_LIBS_PATH}
-extraSharedLibs_static_cfitsio = {"Darwin": ["curl"], "Linux": []}
+extraSharedLibs_static_cfitsio = {"Darwin": ["curl", "z"], "Linux": []}
 
 BASE_SHARED_LIBS = ["m"]
 if os_type == "Linux":
@@ -184,9 +185,13 @@ with OpenMP support).
 #    SSE2 is supported on Intel processors from xxx onward
 #    AVX  is supported on Intel "Core i3/i5/i7" processors from 2011 onward
 #    AVX2  is supported on Intel Haswell and later processors (mostly 2014 onward)
-#    AVX-512  is supported only on "Knights Landing" Xeon Phi processors (2106 onward)
+#    AVX-512  is supported only on "Knights Landing" Xeon Phi processors (2016 onward)
 
-cflags_opt = ["-O3", "-g0", "-fPIC", "-msse2", "-std=c++11"]
+cflags_opt = ["-O3", "-g0", "-fPIC", "-std=c++11"]
+if os_type == "Darwin":
+    cflags_opt.append("-mmacosx-version-min=10.13")
+if useVectorExtensions:
+    cflags_opt.append("-msse2")
 cflags_db = ["-Wall", "-g3", "-O0", "-fPIC", "-std=c++11", "-Wshadow", 
                 "-Wredundant-decls", "-Wpointer-arith"]
 
@@ -215,20 +220,22 @@ cpp_compiler_changed = False
 usingGCC = True
 
 
-# ** Special setup for compilation by P.E. on Mac (assumes GCC v9 is installed and
-# callable via gcc-9 and g++-9)
+# ** Special setup for compilation by P.E. on Mac (assumes GCC v12 is installed and
+# callable via gcc-12 and g++-12)
 # Comment this out otherwise!
 # Note that the following way of determining the username seems to be a bit more 
 # portable than "getpass.getuser()", which fails for "Ubuntu on Windows" (acc. to 
 # Lee Kelvin, who contributed the new version)
 userName = pwd.getpwuid(os.getuid())[0]
 if (os_type == "Darwin") and (userName == "erwin"): 
-    CC_COMPILER = "gcc-9"
-    CPP_COMPILER = "g++-9"
+    CC_COMPILER = "gcc-12"
+    CPP_COMPILER = "g++-12"
     c_compiler_changed = True
     cpp_compiler_changed = True
     usingGCC = True
 
+
+extra_defines = []
 
 # *** System-specific setup
 # if (os_type == "Darwin"):   # OK, we're compiling on macOS (a.k.a. Mac OS X)
@@ -237,15 +244,16 @@ if (os_type == "Darwin") and (userName == "erwin"):
 #   # are 32-bit, use the following
 #   cflags_db = ["-Wall", "-Wshadow", "-Wredundant-decls", "-Wpointer-arith", "-g3"]
 if (os_type == "Linux"):
+    extra_defines.append("LINUX")
     # change the following path definitions as needed
     include_path.append("/usr/include")
     if userName == "erwin":
         include_path.append("/home/erwin/include")
         lib_path.append("/home/erwin/lib")
+else:
+    extra_defines.append("MACOS")
 defines_opt = base_defines
 defines_db = base_defines
-
-extra_defines = []
 
 
 
@@ -269,14 +277,14 @@ setOptToDebug = False
 useLogging = False
 
 # Define some user options
+AddOption("--fftw-path", dest="fftwLibraryPath", type="string", action="store", default=None,
+    help="path to directory containing FFTW libraries")
+AddOption("--fftw-openmp", dest="fftwOpenMP", action="store_true", 
+    default=False, help="compile with OpenMP-threaded FFTW library")
 AddOption("--lib-path", dest="libraryPath", type="string", action="store", default=None,
     help="colon-separated list of additional paths to search for libraries")
 AddOption("--header-path", dest="headerPath", type="string", action="store", default=None,
     help="colon-separated list of additional paths to search for header files")
-AddOption("--no-threading", dest="fftwThreading", action="store_false", 
-    default=True, help="compile programs *without* FFTW threading")
-# AddOption("--no-gsl", dest="useGSL", action="store_false", 
-#     default=True, help="do *not* use GNU Scientific Library")
 AddOption("--no-nlopt", dest="useNLopt", action="store_false", 
     default=True, help="do *not* use NLopt library")
 AddOption("--no-openmp", dest="noOpenMP", action="store_true", 
@@ -366,8 +374,8 @@ if GetOption("useGCC"):
         print("ERROR: You cannot specify both Clang and GCC as the compiler!")
         Exit(2)
     usingGCC = True
-    CC_COMPILER = "gcc-9"
-    CPP_COMPILER = "g++-9"
+    CC_COMPILER = "gcc-12"
+    CPP_COMPILER = "g++-12"
     print("using %s for C compiler" % CC_COMPILER)
     print("using %s for C++ compiler" % CPP_COMPILER)
     c_compiler_changed = True
@@ -395,6 +403,15 @@ if GetOption("useTotalStaticLinking"):
     if usingGCC:
         totalStaticLinking = True
 
+
+# TESTING FFTW
+if GetOption("fftwLibraryPath"):
+    fftwPath = GetOption("fftwLibraryPath") + "/lib/"
+    STATIC_FFTW_LIBRARY_FILE = File(fftwPath + "libfftw3.a")
+    if GetOption("fftwOpenMP"):
+        STATIC_FFTW_THREADED_LIBRARY_FILE = File(fftwPath + "libfftw3_omp.a")
+    else:
+        STATIC_FFTW_THREADED_LIBRARY_FILE = File(fftwPath + "libfftw3_threads.a")
 
 
 # *** Setup for various options (either default, or user-altered)
@@ -528,6 +545,13 @@ env = Environment( CC=CC_COMPILER, CXX=CPP_COMPILER, CPPPATH=include_path, LIBS=
 env_debug = Environment( CC=CC_COMPILER, CXX=CPP_COMPILER, CPPPATH=include_path, LIBS=lib_list, 
                     LIBPATH=lib_path, CCFLAGS=cflags_db, LINKFLAGS=link_flags, 
                     CPPDEFINES=defines_db )
+lib_list_nofits = copy.copy(lib_list)
+if "nlopt" in lib_list_nofits:
+    lib_list_nofits.remove("nlopt")
+env_debug_nofits = Environment( CC=CC_COMPILER, CXX=CPP_COMPILER, CPPPATH=include_path, 
+                    LIBS=lib_list_nofits, 
+                    LIBPATH=lib_path, CCFLAGS=cflags_db, LINKFLAGS=link_flags, 
+                    CPPDEFINES=defines_db )
 
 
 # Checks for libraries and headers -- if we're not doing scons -c:
@@ -583,7 +607,7 @@ modelobject_sources = [name + ".cpp" for name in modelobject_objs]
 functionobject_obj_string = """function_object func_gaussian func_exp func_gen-exp  
         func_sersic func_gen-sersic func_core-sersic func_broken-exp
         func_broken-exp2d func_moffat func_flatsky func_tilted-sky-plane 
-        func_flatbar func_gaussian-ring func_spiral func_spiral_broken func_spiral_0b func_spiral_1b func_spiral_2b
+        func_flatbar func_gaussian-ring 
         func_gaussian-ring2side func_gaussian-ring-az func_edge-on-disk_n4762 
         func_edge-on-disk_n4762v2 func_edge-on-ring func_edge-on-ring2side 
         func_king func_king2 func_ferrersbar2d 
@@ -597,30 +621,45 @@ functionobject_obj_string += " func_brokenexpdisk3d"  # requires integrator
 functionobject_obj_string += " func_gaussianring3d"  # requires integrator
 functionobject_obj_string += " func_ferrersbar3d"  # requires integrator
 functionobject_obj_string += " func_pointsource"
+functionobject_obj_string += " func_pointsource-rot"
+functionobject_obj_string += " func_spiral_spur"
+functionobject_obj_string += " func_spiral"
+functionobject_obj_string += " func_spiral_1b"
+functionobject_obj_string += " func_spiral_2b"
+functionobject_obj_string += " func_spiral_full"
+functionobject_obj_string += " func_spiral_full_1b"
+functionobject_obj_string += " func_spiral_full_2b"
 if useExtraFuncs:
     # experimental extra functions for personal testing
     functionobject_obj_string += " func_broken-exp-bar"
     functionobject_obj_string += " func_double-broken-exp"
     functionobject_obj_string += " func_gen-exp2"
-#    functionobject_obj_string += " func_flatbar"
     functionobject_obj_string += " func_flatbar_trunc"
+    functionobject_obj_string += " func_gauss_extraparams"
     functionobject_obj_string += " func_gen-flatbar"
     functionobject_obj_string += " func_bp-cross-section"
     functionobject_obj_string += " func_lorentzian-ring"
     functionobject_obj_string += " func_n4608disk"
-#    if useGSL:
     functionobject_obj_string += " func_brokenexpbar3d"
     functionobject_obj_string += " func_boxytest3d"
+    functionobject_obj_string += " func_boxytest3d2"
+    functionobject_obj_string += " func_flatbar3d"
     functionobject_obj_string += " func_double-brokenexpdisk3d"
     functionobject_obj_string += " func_expdisk3d_trunc"
+    functionobject_obj_string += " func_logspiral_exp"
+    functionobject_obj_string += " func_logspiral_brokenexp"
     functionobject_obj_string += " func_logspiral"
     functionobject_obj_string += " func_logspiral2"
+    functionobject_obj_string += " func_logspiral3"
     functionobject_obj_string += " func_logspiral_gauss"
-    functionobject_obj_string += " func_nan"
+    functionobject_obj_string += " func_logspiral_arc"
+    functionobject_obj_string += " func_polynomial_d1"
     functionobject_obj_string += " func_triaxbar3d"
     functionobject_obj_string += " func_triaxbar3d_sq"
     functionobject_obj_string += " func_triaxbar3d_gengauss_sq"
     functionobject_obj_string += " func_exp-higher-mom"
+    functionobject_obj_string += " func_nan"
+    functionobject_obj_string += " func_simple-checkerboard"
 # ADD CODE FOR NEW FUNCTIONS HERE
 # (NOTE: be sure to include one or more spaces before the file name!)
 # e.g.,
@@ -647,7 +686,7 @@ cdream_sources = [name + ".cpp" for name in cdream_objs]
 
 # Base files for imfit, makeimage, imfit-mcmc, and libimfit:
 base_obj_string = """mp_enorm statistics mersenne_twister commandline_parser utilities 
-config_file_parser add_functions"""
+config_file_parser add_functions count_cpu_cores"""
 base_objs = [ CORE_SUBDIR + name for name in base_obj_string.split() ]
 # FITS image-file I/O
 image_io_obj_string = "image_io getimages"
@@ -656,9 +695,9 @@ image_io_objs = [ CORE_SUBDIR + name for name in image_io_obj_string.split() ]
 # Main set of files for imfit
 imfit_obj_string = """print_results bootstrap_errors estimate_memory 
 imfit_main"""
-if useLogging:
-    imfit_obj_string += " loguru/loguru"
 imfit_base_objs = [ CORE_SUBDIR + name for name in imfit_obj_string.split() ]
+if useLogging:
+    imfit_base_objs.append("loguru/loguru")
 imfit_base_objs = base_objs + image_io_objs + imfit_base_objs
 imfit_base_sources = [name + ".cpp" for name in imfit_base_objs]
 
@@ -671,6 +710,8 @@ makeimage_base_sources = [name + ".cpp" for name in makeimage_base_objs]
 # Main set of files for imfit-mcmc
 mcmc_obj_string = """estimate_memory mcmc_main"""
 mcmc_base_objs = [ CORE_SUBDIR + name for name in mcmc_obj_string.split() ]
+if useLogging:
+    mcmc_base_objs.append("loguru/loguru")
 mcmc_base_objs = mcmc_base_objs + base_objs + image_io_objs + cdream_objs
 mcmc_base_sources = [name + ".cpp" for name in mcmc_base_objs]
 
@@ -746,113 +787,3 @@ staticlib = env.StaticLibrary(target="libimfit", source=libimfit_objlist)
 
 
 
-# *** Other programs (profilefit, psfconvolve, older stuff)
-# From here to the end of the file: removed from exported distribution version of SConstruct
-
-env_1d = Environment( CC=CC_COMPILER, CXX=CPP_COMPILER, CPPPATH=include_path, LIBS=lib_list_1d, LIBPATH=lib_path,
-                        CCFLAGS=cflags_db, LINKFLAGS=link_flags, CPPDEFINES=defines_db )
-
-# ModelObject1d and related classes:
-# (Note that model_object includes references to oversampled_region and downsample,
-# so we need to include those in the compilation and link, even though they aren't
-# actually used in model_object1d. Similarly, code in image_io is referenced from
-# downsample.)
-modelobject1d_obj_string = """model_object oversampled_region downsample psf_oversampling_info"""
-modelobject1d_objs = [CORE_SUBDIR + name for name in modelobject1d_obj_string.split()]
-modelobject1d_sources = [name + ".cpp" for name in modelobject1d_objs]
-
-# 1D FunctionObject classes (note that we have to add a separate entry for function_object.cpp,
-# which is in a different subdirectory):
-functionobject1d_obj_string = """func1d_gaussian func1d_gaussian_linear func1d_exp func1d_sersic 
-        func1d_core-sersic func1d_broken-exp func1d_moffat func1d_delta func1d_sech 
-        func1d_sech2 func1d_vdksech func1d_gaussian2side  func1d_nuker func1d_spline
-        func1d_n1543majmin_circbulge func1d_n1543majmin func1d_n1543majmin2
-        func1d_double-gauss-hermite func1d_gauss-hermite"""
-functionobject1d_objs = [ FUNCTION_1D_SUBDIR + name for name in functionobject1d_obj_string.split() ]
-functionobject1d_objs.append(FUNCTION_SUBDIR + "function_object")
-functionobject1d_sources = [name + ".cpp" for name in functionobject1d_objs]
-
-# Base files for profilefit:
-profilefit_base_obj_string = """core/commandline_parser core/utilities profile_fitting/read_profile 
-        core/config_file_parser core/print_results profile_fitting/add_functions_1d core/convolver 
-        core/mp_enorm core/statistics core/mersenne_twister 
-        function_objects/psf_interpolators
-        profile_fitting/convolver1d profile_fitting/model_object_1d 
-        profile_fitting/bootstrap_errors_1d profile_fitting/profilefit_main"""
-profilefit_base_objs = profilefit_base_obj_string.split()
-profilefit_base_sources = [name + ".cpp" for name in profilefit_base_objs]
-
-# profilefit: put all the object and source-code lists together
-profilefit_objs = profilefit_base_objs + modelobject1d_objs + functionobject1d_objs + solver_objs
-profilefit_sources = profilefit_base_sources + modelobject1d_sources + functionobject1d_sources + solver_sources
-
-# psfconvolve1d: put all the object and source-code lists together
-psfconvolve1d_objs = ["profile_fitting/psfconvolve1d_main", "core/commandline_parser", "core/utilities",
-                    "profile_fitting/read_profile", "profile_fitting/convolver1d"]
-psfconvolve1d_sources = [name + ".cpp" for name in psfconvolve1d_objs]
-
-
-
-# source+obj lists for older or less-used programs:
-# readimage: put all the object and source-code lists together
-readimage_sources = ["readimage_main.cpp", "image_io.cpp"]
-
-# psfconvolve: put all the object and source-code lists together
-psfconvolve_objs = ["extra/psfconvolve_main", "core/commandline_parser", "core/utilities",
-                    "core/image_io", "core/convolver"]
-psfconvolve_sources = [name + ".cpp" for name in psfconvolve_objs]
-
-# test_parser: put all the object and source-code lists together
-testparser_objs = ["test_parser", "core/config_file_parser", "core/utilities"]
-testparser_sources = [name + ".cpp" for name in testparser_objs]
-
-
-# test_2dspline: put all the object and source-code lists together
-spline2dtest_objs = ["spline2dtest_main", "function_objects/psf_interpolators", 
-                    "core/commandline_parser", "core/utilities", "core/image_io", 
-                    "function_objects/function_object", "function_objects/func_pointsource"]
-spline2dtest_sources = [name + ".cpp" for name in spline2dtest_objs]
-
-
-
-
-
-# profile fit is fast, so we don't really need an "optimized" version
-profilefit_dbg_objlist = [ env_debug.Object(obj + ".do", src) for (obj,src) in zip(profilefit_objs, profilefit_sources) ]
-env_1d.Program("profilefit", profilefit_dbg_objlist)
-
-psfconvolve_dbg_objlist = [ env_debug.Object(obj + ".do", src) for (obj,src) in zip(psfconvolve_objs, psfconvolve_sources) ]
-env_debug.Program("psfconvolve", psfconvolve_dbg_objlist)
-
-psfconvolve1d_dbg_objlist = [ env_debug.Object(obj + ".do", src) for (obj,src) in zip(psfconvolve1d_objs, psfconvolve1d_sources) ]
-env_1d.Program("psfconvolve1d", psfconvolve1d_dbg_objlist)
-
-
-spline2dtest_objlist = [ env_debug.Object(obj + ".do", src) for (obj,src) in zip(spline2dtest_objs, spline2dtest_sources) ]
-env_debug.Program("spline2dtest", spline2dtest_objlist)
-
-
-# timing: variation on makeimage designed to time image-generation and convolution
-# Base files for timing:
-timing_base_obj_string = """core/commandline_parser core/utilities core/image_io 
-            core/config_file_parser core/add_functions core/mp_enorm core/mersenne_twister
-            extra/timing_main"""
-timing_base_objs = timing_base_obj_string.split()
-timing_base_sources = [name + ".cpp" for name in timing_base_objs]
-
-timing_sources = timing_base_sources + modelobject_sources + functionobject_sources
-
-env.Program("timing", timing_sources)
-
-
-# test harnesses, etc.:
-# test_commandline_objlist = [ env_debug.Object(obj + ".do", src) for (obj,src) in zip(test_commandline_objs, test_commandline_sources) ]
-# env_debug.Program("test_commandline", test_commandline_objlist)
-
-# older programs
-testparser_objlist = [ env_debug.Object(obj + ".do", src) for (obj,src) in zip(testparser_objs, testparser_sources) ]
-env_debug.Program("testparser", testparser_objlist)
-readimage_test_objs = ["readimage_test", "core/image_io"]
-readimage_test_sources = [name + ".cpp" for name in readimage_test_objs]
-readimage_test_dbg_objlist = [ env_debug.Object(obj + ".do", src) for (obj,src) in zip(readimage_test_objs, readimage_test_sources) ]
-env.Program("readimage_test", readimage_test_dbg_objlist)
