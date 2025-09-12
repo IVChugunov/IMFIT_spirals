@@ -26,7 +26,6 @@ Our model produces 2D light distribution in the individual spiral arm. Produced 
 ## List of parameters
 
 Here is the brief description of all parameters of our baseline model, `SpiralArm`.
-The basic model is `SpiralArm0b`.  Here, we provide a list of parameters of this function.
 * `X0`, `Y0`: image coordinates of a center of the spiral structure (similar to other IMFIT components, generally should match the disc coordinates);
 * `PA`, `ell`: parameters describing the orientation of the galactic plane (similar to other IMFIT components, generally should match the disc coordinates);
 * `r_0`, `phi_0`: spiral arm beginning position in polar coordinates.
@@ -52,3 +51,4 @@ Thus, we consider models from our first works to be obsolete and do not plan (an
 
 
 * [main](https://github.com/IVChugunov/IMFIT_spirals/tree/main) branch contains our final version.
+
